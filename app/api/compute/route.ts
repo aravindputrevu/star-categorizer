@@ -1,53 +1,119 @@
 import { NextResponse } from 'next/server';
+import OpenAI from 'openai';
 
 import { Octokit } from '@octokit/rest';
 
-// Initialize Octokit
 const octokit = new Octokit({
   auth: process.env.GITHUB_ACCESS_TOKEN
-})
+});
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function POST(request: Request) {
   try {
-    const { username } = await request.json()
-
-    if (!username || typeof username !== 'string') {
-      return NextResponse.json({ error: 'Invalid username' }, { status: 400 })
+    const { url } = await request.json();
+    
+    if (!url || typeof url !== 'string') {
+      return NextResponse.json({ error: 'Invalid PR URL' }, { status: 400 });
+    }
+    
+    // Extract owner, repo, and PR number from the URL
+    const match = url.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+    if (!match) {
+      return NextResponse.json({ error: 'Invalid GitHub PR URL format' }, { status: 400 });
     }
 
-    // Fetch starred repositories for the user
-    const { data: starredRepos } = await octokit.rest.activity.listReposStarredByUser({
-      username: username,
-      per_page: 25 // Adjust this number to fetch more or fewer repos
-    })
+    const [, owner, repo, pullNumber] = match;
 
-    console.log(`Starred projects for user ${username}:`)
-    for (const [index, repo] of starredRepos.entries()) {
-      console.log(`${index + 1}. ${repo.full_name} (${repo.stargazers_count} stars)`)
-      console.log(`   Description: ${repo.description || 'No description'}`)
-      console.log(`   URL: ${repo.html_url}`)
+    // Fetch PR details
+    const { data: pr } = await octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: parseInt(pullNumber, 10)
+    });
 
-      // Fetch additional metrics
-      const [commits, issues, pullRequests, releases] = await Promise.all([
-        octokit.rest.repos.listCommits({ owner: repo.owner.login, repo: repo.name, per_page: 1 }),
-        octokit.rest.issues.listForRepo({ owner: repo.owner.login, repo: repo.name, state: 'open', sort: 'created', direction: 'desc', per_page: 1 }),
-        octokit.rest.pulls.list({ owner: repo.owner.login, repo: repo.name, state: 'open', sort: 'created', direction: 'desc', per_page: 1 }),
-        octokit.rest.repos.listReleases({ owner: repo.owner.login, repo: repo.name, per_page: 1 })
-      ])
+    console.log(`PR #${pr.number}: ${pr.title}`);
+    console.log(`Status: ${pr.state}`);
+    console.log(`Created: ${pr.created_at}, Updated: ${pr.updated_at}`);
+    console.log(`Author: ${pr.user.login}`);
+    console.log(`Description: ${pr.body || 'No description provided'}`);
 
-      console.log(`   Last commit: ${commits.data[0]?.commit.author?.date || 'N/A'}`)
-      console.log(`   Last issue created: ${issues.data[0]?.created_at || 'N/A'}`)
-      console.log(`   Last PR created: ${pullRequests.data[0]?.created_at || 'N/A'}`)
-      console.log(`   Last release: ${releases.data[0]?.created_at || 'N/A'}`)
-      console.log('---')
-    }
+    // Fetch PR files
+    const { data: files } = await octokit.rest.pulls.listFiles({
+      owner,
+      repo,
+      pull_number: pr.number
+    });
+
+    console.log(`\nFiles changed (${files.length}):`);
+    files.forEach(file => {
+      console.log(`- ${file.filename} (${file.status}, +${file.additions}/-${file.deletions})`);
+    });
+
+    // Fetch PR comments
+    const { data: comments } = await octokit.rest.issues.listComments({
+      owner,
+      repo,
+      issue_number: pr.number
+    });
+
+    console.log(`\nComments (${comments.length}):`);
+    comments.forEach(comment => {
+      console.log(`- ${comment.user.login} at ${comment.created_at}:`);
+      console.log(`  ${comment.body.replace(/\n/g, '\n  ')}`);
+    });
+
+    // Prepare data for GPT-4
+    const prData = {
+      number: pr.number,
+      title: pr.title,
+      state: pr.state,
+      created_at: pr.created_at,
+      updated_at: pr.updated_at,
+      author: pr.user.login,
+      description: pr.body || 'No description provided',
+      files: files.map(file => ({
+        filename: file.filename,
+        status: file.status,
+        additions: file.additions,
+        deletions: file.deletions
+      })),
+      comments: comments.map(comment => ({
+        user: comment.user.login,
+        created_at: comment.created_at,
+        body: comment.body
+      }))
+    };
+
+    // Send data to GPT-4 for analysis
+    const gptResponse = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        {
+          role: "system",
+          content: "You are an AI assistant that analyzes GitHub pull requests and does funny code related roasts. Don't be mean and personal."
+        },
+        {
+          role: "user",
+          content: `Use the Pull request data: ${JSON.stringify(prData)} and roast this Pull Request in a funny way. Don't be mean and personal, but be funny. Use all kinds of code related jokes. Ony print the roast and nothing else.
+          make sure you print a ascii art of something related to the roast.`
+        }
+      ],
+    });
+
+    const analysis = gptResponse.choices[0].message.content;
+
+    console.log(`\nGPT-4 Analysis:`);
+    console.log(analysis)
 
     return NextResponse.json({ 
-      message: `Starred projects for ${username} have been printed to the console.`,
-      starredCount: starredRepos.length
-    })
+      message: `PR information has been printed to the console.`,
+      analysis: analysis
+    });
   } catch (error) {
-    console.error('Error fetching starred projects:', error)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    console.error('Error fetching PR information:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
