@@ -9,13 +9,9 @@ export default function GithubUsernameForm() {
   const [username, setUsername] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [categories, setCategories] = useState(null)
 
   const validateUsername = (value: string) => {
-    // GitHub username requirements:
-    // - Only alphanumeric characters or hyphens
-    // - Cannot have multiple consecutive hyphens
-    // - Cannot begin or end with a hyphen
-    // - Maximum is 39 characters
     const regex = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i
     return regex.test(value)
   }
@@ -23,6 +19,7 @@ export default function GithubUsernameForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setCategories(null)
 
     if (!validateUsername(username)) {
       setError('Invalid GitHub username')
@@ -45,8 +42,11 @@ export default function GithubUsernameForm() {
       }
 
       const data = await response.json()
-      console.log('Computed data:', data)
-      // Handle the response data as needed
+      if (data.categories) {
+        setCategories(data.categories)
+      } else {
+        setError('No repository data available')
+      }
     } catch (error) {
       setError('An error occurred while processing the request')
     } finally {
@@ -55,8 +55,8 @@ export default function GithubUsernameForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen p-4 space-y-8">
+      <Card className="w-full max-w-md mx-auto">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">GitHub Username Validator</CardTitle>
         </CardHeader>
@@ -78,6 +78,44 @@ export default function GithubUsernameForm() {
           </form>
         </CardContent>
       </Card>
+
+      {categories && (
+  <Card className="w-full max-w-4xl mx-auto bg-white">
+    <CardHeader>
+      <CardTitle className="text-xl">GitHub Repository Categories</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {Object.entries(categories).map(([category, repos]) => (
+          <div key={category} className="border rounded-lg p-4 bg-gray-50">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-800">
+                {category}
+              </h3>
+              <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded">
+                {repos.length}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {repos.map((repo) => (
+                <div key={repo} className="bg-white p-2 rounded border">
+                  <a
+                    href={`https://github.com/${repo}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center"
+                  >
+                    <span className="truncate">{repo}</span>
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </CardContent>
+  </Card>
+)}
     </div>
   )
 }
