@@ -88,20 +88,26 @@ export async function POST(request: Request) {
     };
 
     // Send data to GPT-4 for analysis
-    const gptResponse = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [
-        {
-          role: "system",
-          content: "You are an AI assistant that analyzes GitHub pull requests and does funny code related roasts. Don't be mean and personal."
-        },
-        {
-          role: "user",
-          content: `Use the Pull request data: ${JSON.stringify(prData)} and roast this Pull Request in a funny way. Don't be mean and personal, but be funny. Use all kinds of code related jokes. Ony print the roast and nothing else.
-          make sure you print a ascii art of something related to the roast.`
-        }
-      ],
-    });
+    let gptResponse;
+    try {
+      gptResponse = await openai.chat.completions.create({
+        model: "gpt-4",
+        messages: [
+          {
+            role: "system",
+            content: "You are an AI assistant that analyzes GitHub pull requests and does funny code related roasts. Don't be mean and personal."
+          },
+          {
+            role: "user",
+            content: `Use the Pull request data: ${JSON.stringify(prData)} and roast this Pull Request in a funny way. Don't be mean and personal, but be funny. Use all kinds of code related jokes. Only print the roast and nothing else.
+              Make sure you print an ASCII art of something related to the roast.`
+          }
+        ],
+      });
+    } catch (error) {
+      console.error('Error during OpenAI API call:', error);
+      return NextResponse.json({ error: 'Error generating analysis' }, { status: 500 });
+    }
 
     const analysis = gptResponse.choices[0].message.content;
 
