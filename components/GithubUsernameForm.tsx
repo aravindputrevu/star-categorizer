@@ -1,31 +1,36 @@
 'use client'
 
-import { useState } from 'react'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState } from 'react';
+
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 export default function GithubUsernameForm() {
-  const [username, setUsername] = useState('')
+  const [prUrl, setPrUrl] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [analysis, setAnalysis] = useState('')
 
-  const validateUsername = (value: string) => {
-    // GitHub username requirements:
-    // - Only alphanumeric characters or hyphens
-    // - Cannot have multiple consecutive hyphens
-    // - Cannot begin or end with a hyphen
-    // - Maximum is 39 characters
-    const regex = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i
+  const validateGitHubURL = (value: string) => {
+    const regex = /^https:\/\/github\.com\/[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+\/pull\/\d+$/
     return regex.test(value)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setAnalysis('')
 
-    if (!validateUsername(username)) {
-      setError('Invalid GitHub username')
+    if (!validateGitHubURL(prUrl)) {
+      setError('Invalid GitHub PR URL')
       return
     }
 
@@ -37,7 +42,7 @@ export default function GithubUsernameForm() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username }),
+        body: JSON.stringify({ url: prUrl }),
       })
 
       if (!response.ok) {
@@ -46,36 +51,48 @@ export default function GithubUsernameForm() {
 
       const data = await response.json()
       console.log('Computed data:', data)
-      // Handle the response data as needed
+      setAnalysis(data.analysis)
     } catch (error) {
-      setError('An error occurred while processing the request')
+      console.error('Error:', error);
+      setError('An error occurred while processing your request');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+      <Card className="w-full max-w-3xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-center">GitHub Username Validator</CardTitle>
+          <CardTitle className="text-2xl font-bold text-center">Roast my PR</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Input
                 type="text"
-                placeholder="Enter GitHub Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter GitHub PR URL"
+                value={prUrl}
+                onChange={(e) => setPrUrl(e.target.value)}
                 className="w-full"
               />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Processing...' : 'Submit'}
+              {isLoading ? 'Analyzing...' : 'Analyze PR'}
             </Button>
           </form>
+          {analysis && (
+            <div className="mt-6">
+              <Separator className="my-4" />
+              <h3 className="text-lg font-semibold mb-2">Fresh Roast</h3>
+              <Card>
+                <ScrollArea className="h-[400px] w-full rounded-md border p-4">
+                  <pre className="whitespace-pre-wrap text-sm">{analysis}</pre>
+                </ScrollArea>
+              </Card>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
