@@ -5,8 +5,8 @@ import { Inter } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'GitHub Username Validator',
-  description: 'Validate and compute GitHub usernames',
+  title: 'Star Categorizer - Organize GitHub Stars',
+  description: 'Automatically organize your GitHub starred repositories into meaningful categories',
 }
 
 export default function RootLayout({
