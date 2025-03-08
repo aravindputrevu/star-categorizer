@@ -12,6 +12,7 @@ export default function GithubUsernameForm() {
   const [categories, setCategories] = useState(null)
   const [devFact, setDevFact] = useState('')
   const [noStars, setNoStars] = useState(false)
+  const [starCount, setStarCount] = useState(0)
 
   const validateUsername = (value: string) => {
     const regex = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i
@@ -24,6 +25,7 @@ export default function GithubUsernameForm() {
     setCategories(null)
     setDevFact('')
     setNoStars(false)
+    setStarCount(0)
 
     if (!validateUsername(username)) {
       setError('Invalid GitHub username')
@@ -46,6 +48,12 @@ export default function GithubUsernameForm() {
       }
 
       const data = await response.json()
+      
+      // Always update star count if available
+      if (data.starredCount !== undefined) {
+        setStarCount(data.starredCount)
+      }
+      
       if (data.noStars) {
         setNoStars(true)
         setDevFact(data.devFact || 'Did you know? The average programmer spends 30-50% of their time debugging code.')
@@ -84,7 +92,7 @@ export default function GithubUsernameForm() {
               {isLoading ? 'Analyzing Stars...' : 'Categorize Stars'}
             </Button>
             <p className="text-xs text-gray-400 text-center">
-              {isLoading ? 'This may take a moment depending on how many repositories you have starred.' : ''}
+              {isLoading ? 'This may take a moment depending on how many repositories you have starred. Large collections will be processed in batches.' : ''}
             </p>
           </form>
         </CardContent>

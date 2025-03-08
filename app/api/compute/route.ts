@@ -71,11 +71,28 @@ async function categorizeRepos(repos: any[]) {
     stars: repo.stargazers_count
   }));
 
-  const prompt = `Please analyze these GitHub repositories and categorize them into meaningful groups based on their purpose and technology. Consider the following:
+  console.log("repo length is :" + repos.length);
+
+  // Batch processing configuration
+  const BATCH_SIZE = 200; // Adjust this value based on token limit testing
+  const batches = [];
+  
+  // Split repositories into batches
+  for (let i = 0; i < repoDescriptions.length; i += BATCH_SIZE) {
+    batches.push(repoDescriptions.slice(i, i + BATCH_SIZE));
+  }
+  
+  console.log(`Processing ${batches.length} batches of repositories`);
+  
+  // Process each batch
+  const batchResults = await Promise.all(batches.map(async (batch, index) => {
+    console.log(`Processing batch ${index + 1}/${batches.length} with ${batch.length} repositories`);
+    
+    const prompt = `Please analyze these GitHub repositories and categorize them into meaningful groups based on their purpose and technology. Consider the following:
 
 1. Focus on the repository's purpose and domain (e.g., Web Frameworks, Machine Learning, DevOps Tools)
 2. Use the primary language, description, and topics as indicators
-3. Create between 5-10 categories that best represent this user's interests
+3. Create categories that best represent this user's interests. Categories can be unlimited.
 4. For repositories that don't clearly fit a category, use "Miscellaneous" as a last resort
 5. Some repositories may belong to multiple categories, but place each in the most relevant single category
 
@@ -87,31 +104,47 @@ Return ONLY a JSON object with category names as keys and arrays of repository f
 }
 
 Here are the repositories to categorize:
-${JSON.stringify(repoDescriptions, null, 2)}`;
+${JSON.stringify(batch, null, 2)}`;
 
-  const response = await anthropic.messages.create({
-    model: 'claude-3-5-sonnet-20241022',
-    max_tokens: 4096,
-    messages: [{
-      role: 'user',
-      content: prompt,
-    }],
-    temperature: 0.6,
-  });
-
-  try {
-    if (Array.isArray(response.content) && response.content.length > 0) {
-      console.log("response is :"+ response.content[0].text)
-      console.log("response ended***********************")
-      const categorizedData = JSON.parse(response.content[0].text);
-      return categorizedData;
-    } else {
-      throw new Error('Invalid response format from Claude');
+    console.log(`Batch ${index + 1} prompt length: ${prompt.length}`);
+    
+    try {
+      const response = await anthropic.messages.create({
+        model: 'claude-3-5-sonnet-20241022',
+        max_tokens: 4096,
+        messages: [{
+          role: 'user',
+          content: prompt,
+        }],
+        temperature: 0.6,
+      });
+      
+      if (Array.isArray(response.content) && response.content.length > 0) {
+        console.log(`Batch ${index + 1} categorization complete`);
+        return JSON.parse(response.content[0].text);
+      } else {
+        throw new Error('Invalid response format from Claude');
+      }
+    } catch (error) {
+      console.error(`Error processing batch ${index + 1}:`, error);
+      throw error;
     }
-  } catch (error) {
-    console.error('Error parsing Claude response:', error);
-    throw error;
+  }));
+  
+  // Merge results from all batches
+  const mergedCategories: Record<string, string[]> = {};
+  
+  for (const batchResult of batchResults) {
+    for (const [category, repos] of Object.entries(batchResult)) {
+      if (!mergedCategories[category]) {
+        mergedCategories[category] = [];
+      }
+      mergedCategories[category] = [...mergedCategories[category], ...(repos as string[])];
+    }
   }
+  
+  console.log("Merged all batch results successfully");
+  return mergedCategories;
 }
 
 async function getQuirkyDevFact(anthropic: Anthropic) {
