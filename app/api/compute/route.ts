@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
 import Anthropic from '@anthropic-ai/sdk';
 
+export const runtime = 'edge';
+
 // Initialize Octokit and Anthropic
 const octokit = new Octokit({
   auth: process.env.GITHUB_ACCESS_TOKEN
@@ -11,7 +13,17 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-async function getAllStarredRepos(octokit: Octokit, username: string) {
+// Define types to handle the GitHub API response
+interface StarredRepo {
+  full_name: string;
+  description: string | null;
+  language: string | null;
+  topics?: string[];
+  stargazers_count: number;
+  // Add other properties as needed
+}
+
+async function getAllStarredRepos(octokit: Octokit, username: string): Promise<StarredRepo[]> {
   try {
     // First, get the first page
     const firstPage = await octokit.rest.activity.listReposStarredByUser({
@@ -31,7 +43,7 @@ async function getAllStarredRepos(octokit: Octokit, username: string) {
 
     // If only one page, return first page results
     if (totalPages <= 1) {
-      return firstPage.data;
+      return extractRepoData(firstPage.data);
     }
 
     console.log(`Fetching ${totalPages} pages of starred repos...`); // Debug log
@@ -48,11 +60,11 @@ async function getAllStarredRepos(octokit: Octokit, username: string) {
     // Fetch all pages in parallel
     const remainingPages = await Promise.all(pagePromises);
     
-    // Combine all results
-    const allStars = [
-      ...firstPage.data,
-      ...remainingPages.flatMap(response => response.data)
-    ];
+    // Process and combine all results
+    const firstPageRepos = extractRepoData(firstPage.data);
+    const remainingRepos = remainingPages.flatMap(response => extractRepoData(response.data));
+    
+    const allStars = [...firstPageRepos, ...remainingRepos];
 
     console.log(`Total stars fetched: ${allStars.length}`); // Debug log
     return allStars;
@@ -62,15 +74,33 @@ async function getAllStarredRepos(octokit: Octokit, username: string) {
   }
 }
 
-async function categorizeRepos(repos: any[]) {
+// Helper function to extract repository data from API response
+function extractRepoData(data: any[]): StarredRepo[] {
+  return data.map(item => {
+    // Handle both the old and new GitHub API response formats
+    const repoData = item.repo || item;
+    
+    return {
+      full_name: repoData.full_name,
+      description: repoData.description,
+      language: repoData.language,
+      topics: repoData.topics || [],
+      stargazers_count: repoData.stargazers_count
+      // Add other properties as needed
+    };
+  });
+}
+
+async function categorizeRepos(repos: StarredRepo[]) {
   const repoDescriptions = repos.map(repo => ({
     name: repo.full_name,
     description: repo.description || 'No description',
     language: repo.language,
-    topics: repo.topics,
+    topics: repo.topics || [],
     stars: repo.stargazers_count
   }));
 
+  console.log("repo length is :" + repos.length);
 
   // Batch processing configuration
   const BATCH_SIZE = 200; // Adjust this value based on token limit testing
@@ -81,6 +111,7 @@ async function categorizeRepos(repos: any[]) {
     batches.push(repoDescriptions.slice(i, i + BATCH_SIZE));
   }
   
+  console.log(`Processing ${batches.length} batches of repositories`);
   
   // Process each batch
   const batchResults = await Promise.all(batches.map(async (batch, index) => {
@@ -104,6 +135,7 @@ Return ONLY a JSON object with category names as keys and arrays of repository f
 Here are the repositories to categorize:
 ${JSON.stringify(batch, null, 2)}`;
 
+    console.log(`Batch ${index + 1} prompt length: ${prompt.length}`);
     
     try {
       const response = await anthropic.messages.create({
@@ -118,7 +150,14 @@ ${JSON.stringify(batch, null, 2)}`;
       
       if (Array.isArray(response.content) && response.content.length > 0) {
         console.log(`Batch ${index + 1} categorization complete`);
-        return JSON.parse(response.content[0].text);
+        
+        // Handle the response content block properly based on type
+        const content = response.content[0];
+        if ('text' in content) {
+          return JSON.parse(content.text);
+        } else {
+          throw new Error('Unexpected content type in Claude response');
+        }
       } else {
         throw new Error('Invalid response format from Claude');
       }
@@ -160,7 +199,10 @@ async function getQuirkyDevFact(anthropic: Anthropic) {
   });
   
   if (Array.isArray(response.content) && response.content.length > 0) {
-    return response.content[0].text.trim();
+    const content = response.content[0];
+    if ('text' in content) {
+      return content.text.trim();
+    }
   }
   
   return "The first computer bug was an actual insect - a moth found trapped in a relay of the Harvard Mark II computer in 1947, which gave rise to the term 'debugging'.";
