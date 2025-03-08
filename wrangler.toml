@@ -1,0 +1,25 @@
+name = "star-categorizer"
+compatibility_date = "2023-11-21"
+
+# Bind Environment Variables
+[vars]
+# You can set these in the Cloudflare dashboard or CLI
+# GITHUB_ACCESS_TOKEN = ""
+# ANTHROPIC_API_KEY = ""
+
+# KV Namespace bindings - you can create these in the Cloudflare dashboard
+# [[kv_namespaces]]
+# binding = "STAR_CACHE"
+# id = "your-kv-namespace-id"
+
+# Route configuration - customize as needed
+[[routes]]
+pattern = "/*"
+zone_name = "<your-domain>.com"
+
+# Workers compatibility
+compatibility_flags = [ "nodejs_compat" ]
+
+[env.production]
+workers_dev = true
+route = ""
