@@ -71,7 +71,6 @@ async function categorizeRepos(repos: any[]) {
     stars: repo.stargazers_count
   }));
 
-  console.log("repo length is :" + repos.length);
 
   // Batch processing configuration
   const BATCH_SIZE = 200; // Adjust this value based on token limit testing
@@ -82,7 +81,6 @@ async function categorizeRepos(repos: any[]) {
     batches.push(repoDescriptions.slice(i, i + BATCH_SIZE));
   }
   
-  console.log(`Processing ${batches.length} batches of repositories`);
   
   // Process each batch
   const batchResults = await Promise.all(batches.map(async (batch, index) => {
@@ -106,7 +104,6 @@ Return ONLY a JSON object with category names as keys and arrays of repository f
 Here are the repositories to categorize:
 ${JSON.stringify(batch, null, 2)}`;
 
-    console.log(`Batch ${index + 1} prompt length: ${prompt.length}`);
     
     try {
       const response = await anthropic.messages.create({

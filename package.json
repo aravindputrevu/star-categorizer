@@ -9,7 +9,10 @@
     "lint": "next lint",
     "pages:build": "npx @cloudflare/next-on-pages",
     "pages:deploy": "npx wrangler pages deploy .vercel/output/static",
-    "pages:watch": "npx wrangler pages dev .vercel/output/static --compatibility-date=2023-11-21"
+    "pages:watch": "npx wrangler pages dev .vercel/output/static --compatibility-date=2023-11-21",
+    "wrangler:build": "next build && npx @cloudflare/next-on-pages",
+    "wrangler:deploy": "wrangler pages deploy .vercel/output/static",
+    "wrangler:dev": "wrangler pages dev .vercel/output/static --compatibility-date=2023-11-21"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

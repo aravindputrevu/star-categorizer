@@ -9,11 +9,7 @@ The application is configured to deploy to Cloudflare Pages/Workers for optimal 
 ### Prerequisites
 
 - A Cloudflare account
-- GitHub Action secrets set up in your repository:
-  - `GITHUB_ACCESS_TOKEN`: Your GitHub access token to fetch repository data
-  - `ANTHROPIC_API_KEY`: Your Anthropic API key for Claude
-  - `CLOUDFLARE_API_TOKEN`: Token with Pages deployment permission
-  - `CLOUDFLARE_ACCOUNT_ID`: Your Cloudflare account ID
+- Wrangler CLI installed (`npm install -g wrangler`)
 
 ### Local Development
 
@@ -23,26 +19,34 @@ npm install
 
 # Run the development server
 npm run dev
+
+# OR run with Wrangler for Cloudflare compatibility testing
+npm run wrangler:build
+npm run wrangler:dev
 ```
 
-### Manual Deployment
+### Deployment with Wrangler CLI
 
-You can manually deploy to Cloudflare Pages using these commands:
+You can deploy to Cloudflare Pages using Wrangler CLI:
 
 ```bash
-# Build Next.js project
-npm run build
+# Login to Cloudflare
+wrangler login
 
-# Prepare for Cloudflare Pages
-npm run pages:build
+# Set up secrets
+wrangler secret put GITHUB_ACCESS_TOKEN
+wrangler secret put ANTHROPIC_API_KEY
 
-# Deploy to Cloudflare Pages
-npm run pages:deploy
+# Build and deploy
+npm run wrangler:build
+npm run wrangler:deploy
 ```
 
-### Automatic Deployment
+For detailed Wrangler deployment instructions, see [WRANGLER_DEPLOYMENT.md](./WRANGLER_DEPLOYMENT.md).
 
-The GitHub workflow configuration will automatically deploy your application to Cloudflare Pages whenever you push to the main branch.
+### GitHub Actions Deployment
+
+Alternatively, you can use the GitHub workflow configuration which will automatically deploy your application to Cloudflare Pages whenever you push to the main branch. See the workflow file in `.github/workflows/deploy.yml`.
 
 ## How It Works
 

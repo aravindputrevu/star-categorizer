@@ -1,25 +1,28 @@
 name = "star-categorizer"
 compatibility_date = "2023-11-21"
+compatibility_flags = ["nodejs_compat"]
+main = ".vercel/output/static/_worker.js"
 
-# Bind Environment Variables
-[vars]
-# You can set these in the Cloudflare dashboard or CLI
+# Bind Environment Variables using wrangler secrets
+# Run the following commands to set secrets:
+# wrangler secret put GITHUB_ACCESS_TOKEN
+# wrangler secret put ANTHROPIC_API_KEY
+
+# For local development with .env file
+# [vars]
 # GITHUB_ACCESS_TOKEN = ""
 # ANTHROPIC_API_KEY = ""
 
-# KV Namespace bindings - you can create these in the Cloudflare dashboard
+# Optional: KV Namespace for caching responses
+# To create a KV namespace:
+# wrangler kv:namespace create "STAR_CACHE"
 # [[kv_namespaces]]
 # binding = "STAR_CACHE"
-# id = "your-kv-namespace-id"
+# id = ""
 
-# Route configuration - customize as needed
-[[routes]]
-pattern = "/*"
-zone_name = "<your-domain>.com"
+# Pages configuration (you don't need routes for Pages)
+[site]
+bucket = ".vercel/output/static"
 
-# Workers compatibility
-compatibility_flags = [ "nodejs_compat" ]
-
-[env.production]
-workers_dev = true
-route = ""
+[build]
+command = "npm run wrangler:build"
