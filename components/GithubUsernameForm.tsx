@@ -13,6 +13,8 @@ export default function GithubUsernameForm() {
   const [devFact, setDevFact] = useState('')
   const [noStars, setNoStars] = useState(false)
   const [starCount, setStarCount] = useState(0)
+  const [processingTime, setProcessingTime] = useState('')
+  const [categoryCount, setCategoryCount] = useState(0)
 
   const validateUsername = (value: string) => {
     const regex = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i
@@ -26,6 +28,8 @@ export default function GithubUsernameForm() {
     setDevFact('')
     setNoStars(false)
     setStarCount(0)
+    setProcessingTime('')
+    setCategoryCount(0)
 
     if (!validateUsername(username)) {
       setError('Invalid GitHub username')
@@ -35,37 +39,59 @@ export default function GithubUsernameForm() {
     setIsLoading(true)
 
     try {
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+      
       const response = await fetch('/api/compute', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username }),
-      })
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId); // Clear the timeout
 
       if (!response.ok) {
-        throw new Error('Failed to compute')
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to compute');
       }
 
-      const data = await response.json()
+      const data = await response.json();
       
       // Always update star count if available
       if (data.starredCount !== undefined) {
-        setStarCount(data.starredCount)
+        setStarCount(data.starredCount);
+      }
+      
+      // Set processing time if available
+      if (data.processingTime) {
+        setProcessingTime(data.processingTime);
+      }
+      
+      // Set category count if available
+      if (data.categoryCount) {
+        setCategoryCount(data.categoryCount);
       }
       
       if (data.noStars) {
-        setNoStars(true)
-        setDevFact(data.devFact || 'Did you know? The average programmer spends 30-50% of their time debugging code.')
+        setNoStars(true);
+        setDevFact(data.devFact || 'Did you know? The average programmer spends 30-50% of their time debugging code.');
       } else if (data.categories) {
-        setCategories(data.categories)
+        setCategories(data.categories);
       } else {
-        setError('No repository data available')
+        setError('No repository data available');
       }
-    } catch (error) {
-      setError('An error occurred while processing the request')
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        setError('Request timed out. Try again with a different username or fewer stars.');
+      } else {
+        setError(error.message || 'An error occurred while processing the request');
+      }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -117,11 +143,19 @@ export default function GithubUsernameForm() {
   <Card className="w-full max-w-5xl mx-auto bg-white">
     <CardHeader className="pb-2">
       <CardTitle className="text-2xl font-bold text-gray-900">Starred Repository Categories</CardTitle>
-      <p className="text-gray-500 text-sm">We analyzed your starred repositories and grouped them by category.</p>
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center">
+        <p className="text-gray-500 text-sm">We analyzed your {starCount} starred repositories and grouped them into {categoryCount} categories.</p>
+        {processingTime && (
+          <p className="text-gray-400 text-xs mt-1 md:mt-0">Processing time: {processingTime}</p>
+        )}
+      </div>
     </CardHeader>
     <CardContent>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Object.entries(categories).map(([category, repos]) => (
+        {Object.entries(categories).sort((a, b) => 
+          // Sort by number of repos in each category (descending)
+          (b[1] as string[]).length - (a[1] as string[]).length
+        ).map(([category, repos]) => (
           <div key={category} className="border rounded-lg p-4 bg-gray-50 shadow-sm hover:shadow-md transition-shadow duration-200">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-semibold text-gray-800 text-lg">
