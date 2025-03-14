@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
-import Anthropic from '@anthropic-ai/sdk';
+import { getDefaultLLMProvider, LLMMessage, createLLMClient, LLMProvider } from '@/lib/llm';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const runtime = 'edge';
 export const maxDuration = 60; // Extend function timeout to 60 seconds
 
-// Initialize Octokit and Anthropic with performance optimizations
+// Initialize Octokit with performance optimizations
 const octokit = new Octokit({
   auth: process.env.GITHUB_ACCESS_TOKEN,
   request: {
@@ -13,9 +14,16 @@ const octokit = new Octokit({
   }
 });
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// Get default LLM provider based on environment variables
+let llmClient: LLMProvider;
+
+// Defer initialization to execution time to avoid circular dependency issues
+function getLLMClient(): LLMProvider {
+  if (!llmClient) {
+    llmClient = getDefaultLLMProvider();
+  }
+  return llmClient;
+}
 
 // Define types to handle the GitHub API response
 interface StarredRepo {
@@ -231,67 +239,138 @@ async function categorizeRepos(repos: StarredRepo[], username: string) {
 2. Use language, description, and topics
 3. Use "Miscellaneous" only when needed
 4. Place each repo in most relevant category
+5. Do not include duplicate repositories
 
 Return JSON: {"Category1": ["owner/repo1", "owner/repo2"], "Category2": ["owner/repo3", "owner/repo4"], ...}
 
 Repositories:
-${JSON.stringify(batch)}`;
+${JSON.stringify(batch)}
+
+Note: Only return valid JSON. No markdown, no text before or after the JSON object.`;
 
     console.log(`Batch ${index + 1} prompt length: ${prompt.length}`);
     
+    // Helper function to clean and parse JSON response
+    const parseResponse = (text: string) => {
+      try {
+        // Clean the response text
+        const cleanedResponse = text
+          .replace(/```json\s*|\s*```/g, '')  // Remove JSON code blocks
+          .trim();
+        
+        // Parse JSON
+        const parsed = JSON.parse(cleanedResponse);
+        
+        // Remove duplicates from each category
+        const deduped: Record<string, string[]> = {};
+        const seen = new Set<string>();
+        
+        for (const [category, repos] of Object.entries(parsed)) {
+          if (Array.isArray(repos)) {
+            deduped[category] = repos.filter((repo: string) => {
+              if (seen.has(repo)) return false;
+              seen.add(repo);
+              return true;
+            });
+          }
+        }
+        
+        return deduped;
+      } catch (error) {
+        console.error('Error parsing response:', {
+          error,
+          stack: (error as Error).stack,
+          responseText: text
+        });
+        throw error;
+      }
+    };
+    
     try {
-      // Use a faster Claude model with lower temperature for more consistent results
-      const response = await anthropic.messages.create({
-        model: 'claude-3-haiku-20240307', // Faster model for better performance
-        max_tokens: 4096,
-        messages: [{
+      // Use the modular LLM interface with configured provider
+      const messages: LLMMessage[] = [
+        {
           role: 'user',
           content: prompt,
-        }],
-        temperature: 0.2, // Lower temperature for more consistent, faster responses
-      });
-      
-      if (Array.isArray(response.content) && response.content.length > 0) {
-        console.log(`Batch ${index + 1} categorization complete`);
-        
-        // Handle the response content block properly based on type
-        const content = response.content[0];
-        if ('text' in content) {
-          return JSON.parse(content.text);
-        } else {
-          throw new Error('Unexpected content type in Claude response');
         }
+      ];
+
+      // Configure the model with JSON schema if using Gemini
+      if (process.env.DEFAULT_LLM_PROVIDER === 'gemini') {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) throw new Error('GEMINI_API_KEY is required');
+        
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({
+          model: process.env.GEMINI_MODEL || "gemini-1.5-pro",
+          generationConfig: {
+            temperature: 0.7,
+          },
+        });
+
+        const result = await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        });
+        
+        return parseResponse(result.response.text());
       } else {
-        throw new Error('Invalid response format from Claude');
+        // Use the selected LLM provider to categorize repos
+        const response = await getLLMClient().chat(messages);
+        console.log(`Batch ${index + 1} categorization complete`);
+        return parseResponse(response.text);
       }
     } catch (error) {
       console.error(`Error processing batch ${index + 1}:`, error);
       
-      // Retry logic for failed batches with the more capable model
+      // Retry logic with a more powerful model
       console.log(`Retrying batch ${index + 1} with more capable model...`);
       try {
-        const retryResponse = await anthropic.messages.create({
-          model: 'claude-3-5-sonnet-20241022', // Fallback to more capable model
-          max_tokens: 4096,
-          messages: [{
-            role: 'user',
-            content: prompt,
-          }],
-          temperature: 0.6,
-        });
-        
-        if (Array.isArray(retryResponse.content) && retryResponse.content.length > 0) {
-          const content = retryResponse.content[0];
-          if ('text' in content) {
-            return JSON.parse(content.text);
-          }
+        // Create a more powerful client for this specific task
+        if (process.env.FALLBACK_LLM_PROVIDER === 'gemini') {
+          const apiKey = process.env.GEMINI_API_KEY;
+          if (!apiKey) throw new Error('GEMINI_API_KEY is required');
+          
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({
+            model: process.env.FALLBACK_GEMINI_MODEL || "gemini-1.5-pro",
+            generationConfig: {
+              temperature: 0.6,
+            },
+          });
+
+          const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          });
+          return parseResponse(result.response.text());
+        } else {
+          const powerfulClient = createLLMClient({
+            provider: process.env.FALLBACK_LLM_PROVIDER || process.env.DEFAULT_LLM_PROVIDER || 'anthropic',
+            model: process.env.FALLBACK_LLM_MODEL || 'claude-3-sonnet-20240229',
+            temperature: 0.6,
+            maxTokens: 4096
+          });
+          
+          const retryResponse = await powerfulClient.chat([
+            {
+              role: 'user',
+              content: prompt,
+            }
+          ]);
+          
+          const cleanedResponse = retryResponse.text
+            .replace(/```json\s*|\s*```/g, '')
+            .trim();
+          
+          return parseResponse(cleanedResponse);
         }
       } catch (retryError) {
-        console.error(`Retry also failed for batch ${index + 1}:`, retryError);
+        console.error(`Retry also failed for batch ${index + 1}:`, {
+          error: retryError,
+          stack: (retryError as Error).stack,
+          message: (retryError as Error).message
+        });
+        return {};
       }
-      
-      // If retry also fails, return an empty object for this batch
-      return {};
     }
   }));
   
@@ -320,7 +399,7 @@ ${JSON.stringify(batch)}`;
 const factCache = new SimpleCache<string[]>(1440); // 24 hour cache
 const FACT_CACHE_KEY = 'dev-facts';
 
-async function getQuirkyDevFact(anthropic: Anthropic) {
+async function getQuirkyDevFact() {
   // Try to get a random fact from cache first
   const cachedFacts = factCache.get(FACT_CACHE_KEY);
   if (cachedFacts && cachedFacts.length > 0) {
@@ -332,29 +411,28 @@ async function getQuirkyDevFact(anthropic: Anthropic) {
   const prompt = `Share an interesting, quirky programming/computer science fact (1-2 sentences). Make it obscure but true.`;
 
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-3-haiku-20240307', // Use faster model for better performance
-      max_tokens: 256, // Reduce token limit for faster response
-      messages: [{
-        role: 'user',
-        content: prompt,
-      }],
+    // Use fast model configuration for quick fact generation
+    const factClient = createLLMClient({
+      provider: process.env.DEFAULT_LLM_PROVIDER || 'anthropic',
       temperature: 0.7,
+      maxTokens: 256, // Reduce token limit for faster response
     });
     
-    if (Array.isArray(response.content) && response.content.length > 0) {
-      const content = response.content[0];
-      if ('text' in content) {
-        const fact = content.text.trim();
-        
-        // Add to cache for future requests
-        const facts = factCache.get(FACT_CACHE_KEY) || [];
-        facts.push(fact);
-        factCache.set(FACT_CACHE_KEY, facts);
-        
-        return fact;
+    const response = await factClient.chat([
+      {
+        role: 'user',
+        content: prompt,
       }
-    }
+    ]);
+    
+    const fact = response.text.trim();
+    
+    // Add to cache for future requests
+    const facts = factCache.get(FACT_CACHE_KEY) || [];
+    facts.push(fact);
+    factCache.set(FACT_CACHE_KEY, facts);
+    
+    return fact;
   } catch (error) {
     console.error('Error getting quirky dev fact:', error);
   }
@@ -407,7 +485,7 @@ export async function POST(request: Request) {
       
       if (starredRepos.length === 0) {
         // If no stars, return a quirky developer fact instead
-        const quirkyFact = await getQuirkyDevFact(anthropic);
+        const quirkyFact = await getQuirkyDevFact();
         return { 
           message: `No starred repositories found for ${username}`,
           starredCount: 0,
@@ -428,11 +506,18 @@ export async function POST(request: Request) {
       console.log(`Created ${categoryCount} categories with ${totalReposMapped} mapped repositories`);
 
       // Format response with timing information
+      // Ensure we have valid categories data
+      const validCategories = Object.keys(categorizedRepos).length > 0 
+        ? categorizedRepos 
+        : { "Uncategorized": starredRepos.map(repo => repo.full_name) };
+      
+      const finalCategoryCount = Object.keys(validCategories).length;
+      
       return {
         message: `Successfully categorized starred projects for ${username}`,
         starredCount: starredRepos.length,
-        categoryCount: categoryCount,
-        categories: categorizedRepos,
+        categoryCount: finalCategoryCount,
+        categories: validCategories,
         processingTime: `${(Date.now() - startTime)/1000}s`
       };
     })();
