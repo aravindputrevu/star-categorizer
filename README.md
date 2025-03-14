@@ -61,5 +61,21 @@ Alternatively, you can use the GitHub workflow configuration which will automati
 - Next.js
 - Cloudflare Workers
 - Tailwind CSS
-- Anthropic Claude API
+- Modular LLM Gateway (supports Claude, Gemini)
 - GitHub API (Octokit)
+
+## LLM Gateway
+
+The application uses a modular LLM gateway that allows you to easily switch between different AI providers:
+
+- **Anthropic Claude** (default)
+- **Google Gemini**
+
+You can configure which provider to use via environment variables:
+
+```env
+# Choose your provider
+DEFAULT_LLM_PROVIDER=anthropic  # or "gemini"
+```
+
+For detailed instructions on configuring and using the LLM gateway, see [LLM_GATEWAY.md](./LLM_GATEWAY.md).
