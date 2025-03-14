@@ -5,6 +5,8 @@
  * It supports switching between providers like Claude, Gemini, etc. via configuration.
  */
 
+import { logger } from '@/lib/utils';
+
 // Message interface (compatible with most LLM providers)
 export interface LLMMessage {
   role: 'user' | 'assistant' | 'system';
@@ -94,7 +96,7 @@ function ensureProvidersLoaded(): boolean {
     providersLoaded = true;
     return true;
   } catch (error) {
-    console.error('Error loading LLM providers:', error);
+    logger.error('Error loading LLM providers', error);
     return false;
   }
 }

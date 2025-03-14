@@ -3,6 +3,7 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { LLMProvider, LLMMessage, LLMResponse, LLMProviderConfig, LLMFactory } from '../index';
+import { logger } from '@/lib/utils';
 
 // Anthropic-specific configuration
 export interface AnthropicConfig extends LLMProviderConfig {
@@ -64,7 +65,7 @@ export class AnthropicProvider extends LLMProvider {
       
       throw new Error('Invalid response format from Claude');
     } catch (error) {
-      console.error('Error in Claude provider:', error);
+      logger.error('Claude provider error', error, { model: this.config.model });
       throw error;
     }
   }

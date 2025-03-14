@@ -3,6 +3,7 @@
  */
 import { GoogleGenerativeAI, GenerationConfig } from '@google/generative-ai';
 import { LLMProvider, LLMMessage, LLMResponse, LLMProviderConfig, LLMFactory } from '../index';
+import { logger } from '@/lib/utils';
 
 // Gemini-specific configuration
 export interface GeminiConfig extends LLMProviderConfig {
@@ -55,7 +56,7 @@ export class GeminiProvider extends LLMProvider {
         raw: response,
       };
     } catch (error) {
-      console.error('Error in Gemini provider:', error);
+      logger.error('Gemini provider error', error, { model: this.config.model });
       throw error;
     }
   }

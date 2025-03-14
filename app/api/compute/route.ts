@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
 import { getDefaultLLMProvider, LLMMessage, createLLMClient, LLMProvider } from '@/lib/llm';
+import { logger } from '@/lib/utils';
 
 export const runtime = 'edge';
 export const maxDuration = 60; // Extend function timeout to 60 seconds
@@ -77,11 +78,11 @@ async function getAllStarredRepos(octokit: Octokit, username: string): Promise<S
     const cacheKey = `stars-${username}`;
     const cachedRepos = starsCache.get(cacheKey);
     if (cachedRepos) {
-      console.log(`Using cached starred repos for ${username}`);
+      logger.info(`Using cached starred repos for ${username}`);
       return cachedRepos;
     }
 
-    console.log(`Fetching starred repos for ${username}`);
+    logger.info(`Fetching starred repos for ${username}`);
     
     // Optimize concurrency with a concurrency limiter
     const PER_PAGE = 100; // Maximum allowed by GitHub API
@@ -110,7 +111,7 @@ async function getAllStarredRepos(octokit: Octokit, username: string): Promise<S
       return repos;
     }
 
-    console.log(`Fetching ${totalPages} pages of starred repos...`);
+    logger.info(`Fetching ${totalPages} pages of starred repos...`, { totalPages });
 
     // Process first page data to get a head start
     const firstPageRepos = extractRepoData(firstPage.data);
@@ -124,7 +125,12 @@ async function getAllStarredRepos(octokit: Octokit, username: string): Promise<S
       const startPage = batch * CONCURRENCY_LIMIT + 2; // +2 because first page is already fetched
       const endPage = Math.min(startPage + CONCURRENCY_LIMIT - 1, totalPages);
       
-      console.log(`Fetching pages ${startPage} to ${endPage} (batch ${batch + 1}/${batchCount})`);
+      logger.debug(`Fetching pages ${startPage} to ${endPage}`, { 
+        batch: batch + 1,
+        batchCount,
+        startPage,
+        endPage
+      });
       
       // Create promises for this batch
       const pagePromises = Array.from(
@@ -147,14 +153,14 @@ async function getAllStarredRepos(octokit: Octokit, username: string): Promise<S
     // Combine all results
     const allStars = [...firstPageRepos, ...allRemainingRepos];
 
-    console.log(`Total stars fetched: ${allStars.length}`);
+    logger.info(`Total stars fetched for ${username}`, { count: allStars.length });
     
     // Cache the results
     starsCache.set(cacheKey, allStars);
     
     return allStars;
   } catch (error) {
-    console.error('Error fetching starred repos:', error);
+    logger.error('Error fetching starred repos', error, { username });
     throw error;
   }
 }
@@ -187,11 +193,11 @@ async function categorizeRepos(repos: StarredRepo[], username: string) {
   const cacheKey = `categories-${username}-${repos.length}`;
   const cachedCategories = categoriesCache.get(cacheKey);
   if (cachedCategories) {
-    console.log(`Using cached categories for ${username}`);
+    logger.info(`Using cached categories for ${username}`, { categoryCount: Object.keys(cachedCategories).length });
     return cachedCategories;
   }
 
-  console.log(`Creating optimized repo descriptions for ${repos.length} repositories`);
+  logger.info(`Preparing to categorize repositories for ${username}`, { repoCount: repos.length });
   
   // Create optimized description objects to minimize JSON size
   const repoDescriptions = new Array(repos.length);
@@ -214,7 +220,10 @@ async function categorizeRepos(repos: StarredRepo[], username: string) {
   const BATCH_SIZE = avgDescriptionLength < 200 ? 250 : 
                      avgDescriptionLength < 500 ? 150 : 100;
   
-  console.log(`Using dynamic batch size of ${BATCH_SIZE} (avg desc length: ${avgDescriptionLength.toFixed(1)})`);
+  logger.debug(`Dynamic batch sizing`, { 
+    batchSize: BATCH_SIZE, 
+    avgDescriptionLength: parseFloat(avgDescriptionLength.toFixed(1))
+  });
   
   // Create batches more efficiently
   const batchCount = Math.ceil(repoDescriptions.length / BATCH_SIZE);
@@ -226,11 +235,18 @@ async function categorizeRepos(repos: StarredRepo[], username: string) {
     batches[i] = repoDescriptions.slice(start, end);
   }
   
-  console.log(`Processing ${batches.length} batches of repositories`);
+  logger.info(`Processing repositories in batches`, { 
+    batchCount: batches.length, 
+    totalRepos: repoDescriptions.length 
+  });
   
   // Process batches in parallel with an optimized compact prompt
   const batchResults = await Promise.all(batches.map(async (batch, index) => {
-    console.log(`Processing batch ${index + 1}/${batches.length} with ${batch.length} repositories`);
+    logger.debug(`Processing batch`, { 
+      batchNumber: index + 1, 
+      batchSize: batch.length, 
+      totalBatches: batches.length 
+    });
     
     // Create a more compact but effective prompt
     const prompt = `Categorize GitHub repos by purpose and technology:
@@ -277,14 +293,14 @@ ${JSON.stringify(batch)}`;
     try {
       // Use the LLM provider to categorize repos
       const response = await getLLMClient().chat([{ role: 'user', content: prompt }]);
-      console.log(`Batch ${index + 1} categorization complete`);
+      logger.debug(`Batch categorization complete`, { batchNumber: index + 1 });
       return parseResponse(response.text);
     } catch (error) {
-      console.error(`Error processing batch ${index + 1}:`, error);
+      logger.error(`Error processing batch`, error, { batchNumber: index + 1 });
       
       // Retry once with fallback model
       try {
-        console.log(`Retrying batch ${index + 1} with fallback model`);
+        logger.info(`Retrying batch with fallback model`, { batchNumber: index + 1 });
         const fallbackClient = createLLMClient({
           provider: process.env.FALLBACK_LLM_PROVIDER || process.env.DEFAULT_LLM_PROVIDER || 'anthropic',
           model: process.env.FALLBACK_LLM_MODEL || 'claude-3-sonnet-20240229',
@@ -293,9 +309,10 @@ ${JSON.stringify(batch)}`;
         });
         
         const retryResponse = await fallbackClient.chat([{ role: 'user', content: prompt }]);
+        logger.info(`Fallback model succeeded for batch`, { batchNumber: index + 1 });
         return parseResponse(retryResponse.text);
       } catch (retryError) {
-        console.error(`Retry failed for batch ${index + 1}:`, retryError);
+        logger.error(`Fallback model also failed`, retryError, { batchNumber: index + 1 });
         return {}; // Return empty result on failure
       }
     }
@@ -332,7 +349,10 @@ ${JSON.stringify(batch)}`;
     }
   });
   
-  console.log(`Merged ${Object.keys(mergedCategories).length} categories with ${seenRepos.size} unique repositories`);
+  logger.info(`Categorization complete for ${username}`, {
+    categoryCount: Object.keys(mergedCategories).length,
+    uniqueRepoCount: seenRepos.size
+  });
   
   // Cache the results
   categoriesCache.set(cacheKey, mergedCategories);
@@ -377,9 +397,10 @@ async function getQuirkyDevFact() {
     facts.push(fact);
     factCache.set(FACT_CACHE_KEY, facts);
     
+    logger.debug(`Generated new dev fact`);
     return fact;
   } catch (error) {
-    console.error('Error getting quirky dev fact:', error);
+    logger.error('Error getting dev fact', error);
   }
   
   // Fallback facts in case of API failure
@@ -405,19 +426,22 @@ export async function POST(request: Request) {
     const { username } = await request.json();
 
     if (!username || typeof username !== 'string') {
+      logger.warn('Invalid username submitted', { username });
       return NextResponse.json({ error: 'Invalid username' }, { status: 400 });
     }
+    
+    logger.info('Processing request', { username });
     
     // Check if there's already a request in progress for this username
     const requestKey = `request-${username}`;
     if (pendingRequests.has(requestKey)) {
-      console.log(`Request for ${username} already in progress, reusing result`);
+      logger.info(`Reusing in-progress request`, { username });
       try {
         const result = await pendingRequests.get(requestKey);
         return NextResponse.json(result);
       } catch (error) {
         // If the shared request failed, we'll try again below
-        console.error(`Shared request for ${username} failed, retrying`);
+        logger.warn(`Shared request failed, retrying`, { username });
         pendingRequests.delete(requestKey);
       }
     }
@@ -426,29 +450,40 @@ export async function POST(request: Request) {
     const resultPromise = (async () => {
       // Fetch starred repositories
       const starredRepos = await getAllStarredRepos(octokit, username);
-      console.log('Number of starred repositories:', starredRepos.length);
+      logger.info('Retrieved starred repositories', { 
+        username, 
+        count: starredRepos.length 
+      });
       
       if (starredRepos.length === 0) {
         // If no stars, return a quirky developer fact instead
         const quirkyFact = await getQuirkyDevFact();
+        const processingTime = `${((Date.now() - startTime)/1000).toFixed(2)}s`;
+        logger.info('No stars found, returning dev fact', { username, processingTime });
+        
         return { 
           message: `No starred repositories found for ${username}`,
           starredCount: 0,
           noStars: true,
           devFact: quirkyFact,
-          processingTime: `${(Date.now() - startTime)/1000}s`
+          processingTime
         };
       }
 
       // Categorize repositories
       const categorizedRepos = await categorizeRepos(starredRepos, username);
       
-      // Log category statistics for debugging performance
+      // Log category statistics
       const categoryCount = Object.keys(categorizedRepos).length;
       const totalReposMapped = Object.values(categorizedRepos)
         .reduce((sum, repos) => sum + repos.length, 0);
         
-      console.log(`Created ${categoryCount} categories with ${totalReposMapped} mapped repositories`);
+      logger.info('Categorization results', { 
+        username,
+        categoryCount,
+        totalReposMapped,
+        mappingRatio: (totalReposMapped / starredRepos.length).toFixed(2)
+      });
 
       // Format response with timing information
       // Ensure we have valid categories data
@@ -458,12 +493,19 @@ export async function POST(request: Request) {
       
       const finalCategoryCount = Object.keys(validCategories).length;
       
+      const processingTime = `${((Date.now() - startTime)/1000).toFixed(2)}s`;
+      logger.info('Request completed successfully', { 
+        username, 
+        processingTime,
+        categoryCount: finalCategoryCount
+      });
+      
       return {
         message: `Successfully categorized starred projects for ${username}`,
         starredCount: starredRepos.length,
         categoryCount: finalCategoryCount,
         categories: validCategories,
-        processingTime: `${(Date.now() - startTime)/1000}s`
+        processingTime
       };
     })();
     
@@ -481,7 +523,8 @@ export async function POST(request: Request) {
     // Return the JSON response
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error processing request:', error);
+    const processingTime = `${((Date.now() - startTime)/1000).toFixed(2)}s`;
+    logger.error('Request processing error', error, { processingTime });
     
     // Provide more helpful error message
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
