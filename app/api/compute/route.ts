@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
 import { getDefaultLLMProvider, LLMMessage, createLLMClient, LLMProvider } from '@/lib/llm';
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const runtime = 'edge';
 export const maxDuration = 60; // Extend function timeout to 60 seconds
@@ -10,14 +9,14 @@ export const maxDuration = 60; // Extend function timeout to 60 seconds
 const octokit = new Octokit({
   auth: process.env.GITHUB_ACCESS_TOKEN,
   request: {
-    timeout: 10000 // 10 second timeout for API requests
+    timeout: 10000, // 10 second timeout for API requests
+    retries: 2 // Auto-retry failed requests
   }
 });
 
-// Get default LLM provider based on environment variables
+// Lazily initialize the LLM provider
 let llmClient: LLMProvider;
 
-// Defer initialization to execution time to avoid circular dependency issues
 function getLLMClient(): LLMProvider {
   if (!llmClient) {
     llmClient = getDefaultLLMProvider();
@@ -170,12 +169,12 @@ function extractRepoData(data: any[]): StarredRepo[] {
     // Handle both the old and new GitHub API response formats
     const repoData = item.repo || item;
     
-    // Extract only the fields we need for categorization
+    // Extract only the fields we need for categorization (minimize memory usage)
     result[i] = {
       full_name: repoData.full_name,
-      description: repoData.description,
+      description: repoData.description?.substring(0, 300) || null, // Limit description length
       language: repoData.language,
-      topics: repoData.topics || [],
+      topics: repoData.topics?.slice(0, 5) || [], // Limit number of topics
       stargazers_count: repoData.stargazers_count
     };
   }
@@ -233,39 +232,32 @@ async function categorizeRepos(repos: StarredRepo[], username: string) {
   const batchResults = await Promise.all(batches.map(async (batch, index) => {
     console.log(`Processing batch ${index + 1}/${batches.length} with ${batch.length} repositories`);
     
-    // Create a more compact prompt
-    const prompt = `Categorize these GitHub repos into groups by purpose and technology:
+    // Create a more compact but effective prompt
+    const prompt = `Categorize GitHub repos by purpose and technology:
 1. Focus on purpose (Web Frameworks, ML, DevOps, etc.)
-2. Use language, description, and topics
-3. Use "Miscellaneous" only when needed
-4. Place each repo in most relevant category
-5. Do not include duplicate repositories
-
-Return JSON: {"Category1": ["owner/repo1", "owner/repo2"], "Category2": ["owner/repo3", "owner/repo4"], ...}
+2. Use language, description, and topics for context
+3. Only use "Miscellaneous" when necessary
+4. Each repo belongs in exactly one category
+5. Return only valid JSON: {"Category1":["owner/repo1"],"Category2":["owner/repo3"]}
 
 Repositories:
-${JSON.stringify(batch)}
+${JSON.stringify(batch)}`;
 
-Note: Only return valid JSON. No markdown, no text before or after the JSON object.`;
-
-    console.log(`Batch ${index + 1} prompt length: ${prompt.length}`);
-    
     // Helper function to clean and parse JSON response
     const parseResponse = (text: string) => {
       try {
-        // Clean the response text
-        const cleanedResponse = text
-          .replace(/```json\s*|\s*```/g, '')  // Remove JSON code blocks
-          .trim();
+        // Extract JSON from response (handling both code blocks and raw JSON)
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        const jsonText = jsonMatch ? jsonMatch[0] : text.trim();
         
         // Parse JSON
-        const parsed = JSON.parse(cleanedResponse);
+        const parsed = JSON.parse(jsonText);
         
-        // Remove duplicates from each category
+        // Efficiently remove duplicates with Set
         const deduped: Record<string, string[]> = {};
         const seen = new Set<string>();
         
-        for (const [category, repos] of Object.entries(parsed)) {
+        Object.entries(parsed).forEach(([category, repos]) => {
           if (Array.isArray(repos)) {
             deduped[category] = repos.filter((repo: string) => {
               if (seen.has(repo)) return false;
@@ -273,121 +265,74 @@ Note: Only return valid JSON. No markdown, no text before or after the JSON obje
               return true;
             });
           }
-        }
+        });
         
         return deduped;
       } catch (error) {
-        console.error('Error parsing response:', {
-          error,
-          stack: (error as Error).stack,
-          responseText: text
-        });
+        console.error('Error parsing response:', error);
         throw error;
       }
     };
     
     try {
-      // Use the modular LLM interface with configured provider
-      const messages: LLMMessage[] = [
-        {
-          role: 'user',
-          content: prompt,
-        }
-      ];
-
-      // Configure the model with JSON schema if using Gemini
-      if (process.env.DEFAULT_LLM_PROVIDER === 'gemini') {
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) throw new Error('GEMINI_API_KEY is required');
-        
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-          model: process.env.GEMINI_MODEL || "gemini-1.5-pro",
-          generationConfig: {
-            temperature: 0.7,
-          },
-        });
-
-        const result = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        });
-        
-        return parseResponse(result.response.text());
-      } else {
-        // Use the selected LLM provider to categorize repos
-        const response = await getLLMClient().chat(messages);
-        console.log(`Batch ${index + 1} categorization complete`);
-        return parseResponse(response.text);
-      }
+      // Use the LLM provider to categorize repos
+      const response = await getLLMClient().chat([{ role: 'user', content: prompt }]);
+      console.log(`Batch ${index + 1} categorization complete`);
+      return parseResponse(response.text);
     } catch (error) {
       console.error(`Error processing batch ${index + 1}:`, error);
       
-      // Retry logic with a more powerful model
-      console.log(`Retrying batch ${index + 1} with more capable model...`);
+      // Retry once with fallback model
       try {
-        // Create a more powerful client for this specific task
-        if (process.env.FALLBACK_LLM_PROVIDER === 'gemini') {
-          const apiKey = process.env.GEMINI_API_KEY;
-          if (!apiKey) throw new Error('GEMINI_API_KEY is required');
-          
-          const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({
-            model: process.env.FALLBACK_GEMINI_MODEL || "gemini-1.5-pro",
-            generationConfig: {
-              temperature: 0.6,
-            },
-          });
-
-          const result = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          });
-          return parseResponse(result.response.text());
-        } else {
-          const powerfulClient = createLLMClient({
-            provider: process.env.FALLBACK_LLM_PROVIDER || process.env.DEFAULT_LLM_PROVIDER || 'anthropic',
-            model: process.env.FALLBACK_LLM_MODEL || 'claude-3-sonnet-20240229',
-            temperature: 0.6,
-            maxTokens: 4096
-          });
-          
-          const retryResponse = await powerfulClient.chat([
-            {
-              role: 'user',
-              content: prompt,
-            }
-          ]);
-          
-          const cleanedResponse = retryResponse.text
-            .replace(/```json\s*|\s*```/g, '')
-            .trim();
-          
-          return parseResponse(cleanedResponse);
-        }
-      } catch (retryError) {
-        console.error(`Retry also failed for batch ${index + 1}:`, {
-          error: retryError,
-          stack: (retryError as Error).stack,
-          message: (retryError as Error).message
+        console.log(`Retrying batch ${index + 1} with fallback model`);
+        const fallbackClient = createLLMClient({
+          provider: process.env.FALLBACK_LLM_PROVIDER || process.env.DEFAULT_LLM_PROVIDER || 'anthropic',
+          model: process.env.FALLBACK_LLM_MODEL || 'claude-3-sonnet-20240229',
+          temperature: 0.6,
+          maxTokens: 4096
         });
-        return {};
+        
+        const retryResponse = await fallbackClient.chat([{ role: 'user', content: prompt }]);
+        return parseResponse(retryResponse.text);
+      } catch (retryError) {
+        console.error(`Retry failed for batch ${index + 1}:`, retryError);
+        return {}; // Return empty result on failure
       }
     }
   }));
   
-  // Merge results from all batches using a more efficient approach
+  // Merge results from all batches more efficiently
   const mergedCategories: Record<string, string[]> = {};
+  const seenRepos = new Set<string>();
   
+  // Process each batch result
   for (const batchResult of batchResults) {
     for (const [category, repos] of Object.entries(batchResult)) {
+      if (!Array.isArray(repos)) continue;
+      
+      // Initialize category array if it doesn't exist
       if (!mergedCategories[category]) {
-        mergedCategories[category] = [...(repos as string[])];
-      } else {
-        mergedCategories[category].push(...(repos as string[]));
+        mergedCategories[category] = [];
+      }
+      
+      // Add unique repos to category
+      for (const repo of repos) {
+        if (!seenRepos.has(repo)) {
+          seenRepos.add(repo);
+          mergedCategories[category].push(repo);
+        }
       }
     }
   }
   
-  console.log("Merged all batch results successfully");
+  // Remove empty categories
+  Object.keys(mergedCategories).forEach(category => {
+    if (mergedCategories[category].length === 0) {
+      delete mergedCategories[category];
+    }
+  });
+  
+  console.log(`Merged ${Object.keys(mergedCategories).length} categories with ${seenRepos.size} unique repositories`);
   
   // Cache the results
   categoriesCache.set(cacheKey, mergedCategories);

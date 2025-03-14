@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,20 +9,22 @@ export default function GithubUsernameForm() {
   const [username, setUsername] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [categories, setCategories] = useState(null)
+  const [categories, setCategories] = useState<Record<string, string[]> | null>(null)
   const [devFact, setDevFact] = useState('')
   const [noStars, setNoStars] = useState(false)
   const [starCount, setStarCount] = useState(0)
   const [processingTime, setProcessingTime] = useState('')
   const [categoryCount, setCategoryCount] = useState(0)
+  const [loadingMessage, setLoadingMessage] = useState('Analyzing Stars...')
 
-  const validateUsername = (value: string) => {
+  // Validate GitHub username format
+  const validateUsername = useCallback((value: string) => {
     const regex = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i
     return regex.test(value)
-  }
+  }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  // Reset all state
+  const resetState = useCallback(() => {
     setError('')
     setCategories(null)
     setDevFact('')
@@ -30,6 +32,33 @@ export default function GithubUsernameForm() {
     setStarCount(0)
     setProcessingTime('')
     setCategoryCount(0)
+    setLoadingMessage('Analyzing Stars...')
+  }, [])
+
+  // Loading message rotator
+  const startLoadingMessages = useCallback(() => {
+    const messages = [
+      'Fetching GitHub stars...',
+      'Analyzing repository data...',
+      'Categorizing by purpose and technology...',
+      'Organizing your stars...',
+      'Preparing results...',
+      'Almost there...'
+    ]
+    let index = 0
+    
+    const intervalId = setInterval(() => {
+      setLoadingMessage(messages[index % messages.length])
+      index++
+    }, 3500)
+    
+    return () => clearInterval(intervalId)
+  }, [])
+
+  // Handle form submission
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
+    resetState()
 
     if (!validateUsername(username)) {
       setError('Invalid GitHub username')
@@ -37,11 +66,12 @@ export default function GithubUsernameForm() {
     }
 
     setIsLoading(true)
+    const stopMessageRotation = startLoadingMessages()
 
     try {
       // Create AbortController for timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
       
       const response = await fetch('/api/compute', {
         method: 'POST',
@@ -50,50 +80,41 @@ export default function GithubUsernameForm() {
         },
         body: JSON.stringify({ username }),
         signal: controller.signal
-      });
+      })
       
-      clearTimeout(timeoutId); // Clear the timeout
+      clearTimeout(timeoutId) // Clear the timeout
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to compute');
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to process')
       }
 
-      const data = await response.json();
+      const data = await response.json()
       
-      // Always update star count if available
-      if (data.starredCount !== undefined) {
-        setStarCount(data.starredCount);
-      }
-      
-      // Set processing time if available
-      if (data.processingTime) {
-        setProcessingTime(data.processingTime);
-      }
-      
-      // Set category count if available
-      if (data.categoryCount) {
-        setCategoryCount(data.categoryCount);
-      }
+      // Process response data
+      if (data.starredCount !== undefined) setStarCount(data.starredCount)
+      if (data.processingTime) setProcessingTime(data.processingTime)
+      if (data.categoryCount) setCategoryCount(data.categoryCount)
       
       if (data.noStars) {
-        setNoStars(true);
-        setDevFact(data.devFact || 'Did you know? The average programmer spends 30-50% of their time debugging code.');
+        setNoStars(true)
+        setDevFact(data.devFact || 'Did you know? The average programmer spends 30-50% of their time debugging code.')
       } else if (data.categories) {
-        setCategories(data.categories);
+        setCategories(data.categories)
       } else {
-        setError('No repository data available');
+        setError('No repository data available')
       }
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        setError('Request timed out. Try again with a different username or fewer stars.');
+        setError('Request timed out. Try again with a different username or fewer stars.')
       } else {
-        setError(error.message || 'An error occurred while processing the request');
+        setError(error.message || 'An error occurred while processing the request')
       }
     } finally {
-      setIsLoading(false);
+      stopMessageRotation()
+      setIsLoading(false)
     }
-  }
+  }, [username, validateUsername, resetState, startLoadingMessages])
 
   return (
     <div className="min-h-screen p-4 space-y-8">
@@ -115,7 +136,7 @@ export default function GithubUsernameForm() {
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? 'Analyzing Stars...' : 'Categorize Stars'}
+              {isLoading ? loadingMessage : 'Categorize Stars'}
             </Button>
             <p className="text-xs text-gray-400 text-center">
               {isLoading ? 'This may take a moment depending on how many repositories you have starred. Large collections will be processed in batches.' : ''}
@@ -151,39 +172,42 @@ export default function GithubUsernameForm() {
       </div>
     </CardHeader>
     <CardContent>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Object.entries(categories).sort((a, b) => 
-          // Sort by number of repos in each category (descending)
-          (b[1] as string[]).length - (a[1] as string[]).length
-        ).map(([category, repos]) => (
-          <div key={category} className="border rounded-lg p-4 bg-gray-50 shadow-sm hover:shadow-md transition-shadow duration-200">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-800 text-lg">
-                {category}
-              </h3>
-              <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                {Array.isArray(repos) ? repos.length : 0}
-              </span>
-            </div>
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {Array.isArray(repos) && repos.map((repo) => (
-                <div key={repo} className="bg-white p-2 rounded border hover:bg-gray-50">
-                  <a
-                    href={`https://github.com/${repo}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                    </svg>
-                    <span className="truncate">{repo}</span>
-                  </a>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Object.entries(categories)
+          .sort((a, b) => (b[1] as string[]).length - (a[1] as string[]).length)
+          .map(([category, repos]) => {
+            if (!Array.isArray(repos) || repos.length === 0) return null;
+            
+            return (
+              <div key={category} className="border rounded-lg p-3 bg-gray-50 shadow-sm hover:shadow-md transition-shadow duration-200">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-semibold text-gray-800 text-lg truncate" title={category}>
+                    {category}
+                  </h3>
+                  <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    {repos.length}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
-        ))}
+                <div className="space-y-1 max-h-56 overflow-y-auto pr-1 overscroll-contain">
+                  {repos.map((repo) => (
+                    <div key={repo} className="bg-white p-2 rounded border hover:bg-gray-50">
+                      <a
+                        href={`https://github.com/${repo}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                        </svg>
+                        <span className="truncate">{repo}</span>
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
       </div>
     </CardContent>
   </Card>

@@ -78,69 +78,55 @@ loadProviders();
 // Flag to track provider loading status
 let providersLoaded = false;
 
-// Ensure providers are loaded before use
-async function ensureProvidersLoaded(): Promise<void> {
-  if (!providersLoaded) {
-    await loadProviders();
+// Ensure providers are loaded before use - works in both async and sync contexts
+function ensureProvidersLoaded(): boolean {
+  if (providersLoaded) return true;
+  
+  try {
+    // First try dynamic import - works in modern JS environments
+    import('./providers/anthropic').catch(() => {});
+    import('./providers/gemini').catch(() => {});
+    
+    // Fallback to require for synchronous loading
+    require('./providers/anthropic');
+    require('./providers/gemini');
+    
     providersLoaded = true;
+    return true;
+  } catch (error) {
+    console.error('Error loading LLM providers:', error);
+    return false;
   }
 }
 
 // Get default provider based on environment variables
 export function getDefaultLLMProvider(): LLMProvider {
+  ensureProvidersLoaded();
+  
   // Default to Anthropic/Claude if no provider specified
   const defaultProvider = process.env.DEFAULT_LLM_PROVIDER || 'anthropic';
-  let config: LLMProviderConfig;
   
-  switch (defaultProvider.toLowerCase()) {
-    case 'gemini':
-      config = {
+  const config: LLMProviderConfig = defaultProvider.toLowerCase() === 'gemini' 
+    ? {
         provider: 'gemini',
         apiKey: process.env.GEMINI_API_KEY,
         model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
-      };
-      break;
-    case 'anthropic':
-    default:
-      config = {
+        temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.2'),
+        maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '4096', 10)
+      }
+    : {
         provider: 'anthropic',
         apiKey: process.env.ANTHROPIC_API_KEY,
         model: process.env.CLAUDE_MODEL || 'claude-3-haiku-20240307',
+        temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.2'),
+        maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '4096', 10)
       };
-      break;
-  }
-  
-  // Ensure providers are loaded before returning
-  if (!providersLoaded) {
-    console.log('Providers not yet loaded, initializing synchronously');
-    // For synchronous usage, we need to ensure providers are registered
-    // This forces synchronous initialization which is not ideal but ensures functionality
-    try {
-      require('./providers/anthropic');
-      require('./providers/gemini');
-      providersLoaded = true;
-    } catch (error) {
-      console.error('Error loading providers synchronously:', error);
-    }
-  }
   
   return LLMFactory.getProvider(config);
 }
 
 // Create a client with specific configuration
 export function createLLMClient(config: LLMProviderConfig): LLMProvider {
-  // Ensure providers are loaded before returning
-  if (!providersLoaded) {
-    console.log('Providers not yet loaded, initializing synchronously');
-    // For synchronous usage, we need to ensure providers are registered
-    try {
-      require('./providers/anthropic');
-      require('./providers/gemini');
-      providersLoaded = true;
-    } catch (error) {
-      console.error('Error loading providers synchronously:', error);
-    }
-  }
-  
+  ensureProvidersLoaded();
   return LLMFactory.getProvider(config);
 }
