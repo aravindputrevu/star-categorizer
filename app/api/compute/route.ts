@@ -4,7 +4,7 @@ import { getDefaultLLMProvider, LLMMessage, createLLMClient, LLMProvider } from 
 import { logger } from '@/lib/utils';
 
 export const runtime = 'edge';
-export const maxDuration = 60; // Extend function timeout to 60 seconds
+export const maxDuration = 300; // Extend function timeout to 5 minutes
 
 // Initialize Octokit with performance optimizations
 const octokit = new Octokit({
@@ -291,8 +291,18 @@ ${JSON.stringify(batch)}`;
     };
     
     try {
-      // Use the LLM provider to categorize repos
-      const response = await getLLMClient().chat([{ role: 'user', content: prompt }]);
+      // Use the LLM provider to categorize repos with timeout protection
+      const responsePromise = getLLMClient().chat([{ role: 'user', content: prompt }]);
+      
+      // Set up a watchdog timer to detect potential hangs
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('LLM request timeout after 60 seconds'));
+        }, 60000); // 60 second timeout per batch
+      });
+      
+      // Race the promises to prevent hanging
+      const response = await Promise.race([responsePromise, timeoutPromise]) as any;
       logger.debug(`Batch categorization complete`, { batchNumber: index + 1 });
       return parseResponse(response.text);
     } catch (error) {
@@ -308,7 +318,18 @@ ${JSON.stringify(batch)}`;
           maxTokens: 4096
         });
         
-        const retryResponse = await fallbackClient.chat([{ role: 'user', content: prompt }]);
+        // Apply same timeout protection to fallback request
+        const retryPromise = fallbackClient.chat([{ role: 'user', content: prompt }]);
+        
+        // Set up a watchdog timer for the fallback
+        const fallbackTimeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => {
+            reject(new Error('Fallback LLM request timeout after 90 seconds'));
+          }, 90000); // 90 second timeout for fallback (longer because it might be a more powerful model)
+        });
+        
+        // Race the fallback promises
+        const retryResponse = await Promise.race([retryPromise, fallbackTimeoutPromise]) as any;
         logger.info(`Fallback model succeeded for batch`, { batchNumber: index + 1 });
         return parseResponse(retryResponse.text);
       } catch (retryError) {
@@ -380,7 +401,7 @@ async function getQuirkyDevFact() {
     const factClient = createLLMClient({
       provider: process.env.DEFAULT_LLM_PROVIDER || 'anthropic',
       temperature: 0.7,
-      maxTokens: 256, // Reduce token limit for faster response
+      maxTokens: 256 // Reduce token limit for faster response
     });
     
     const response = await factClient.chat([
@@ -515,7 +536,7 @@ export async function POST(request: Request) {
     // Set a timeout to clear the promise from the map
     setTimeout(() => {
       pendingRequests.delete(requestKey);
-    }, 60000); // Clear after 1 minute
+    }, 300000); // Clear after 5 minutes to match new maxDuration
     
     // Wait for the result
     const result = await resultPromise;
