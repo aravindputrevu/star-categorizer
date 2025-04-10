@@ -5,22 +5,33 @@ main = ".vercel/output/static/_worker.js"
 
 # Bind Environment Variables using wrangler secrets
 # Run the following commands to set secrets:
-# wrangler secret put GITHUB_ACCESS_TOKEN
-# wrangler secret put ANTHROPIC_API_KEY
+#   wrangler secret put GITHUB_ACCESS_TOKEN
+#   wrangler secret put ANTHROPIC_API_KEY
+#   wrangler secret put GEMINI_API_KEY
 
 # For local development with .env file
 # [vars]
 # GITHUB_ACCESS_TOKEN = ""
 # ANTHROPIC_API_KEY = ""
+# GEMINI_API_KEY = ""
 
-# Optional: KV Namespace for caching responses
+# KV Namespace for caching responses
 # To create a KV namespace:
-# wrangler kv:namespace create "STAR_CACHE"
-# [[kv_namespaces]]
-# binding = "STAR_CACHE"
-# id = ""
+#   wrangler kv:namespace create "STAR_CACHE"
+[[kv_namespaces]]
+binding = "STAR_CACHE"
+id = "YOUR_KV_ID_HERE" # Replace with your KV namespace ID
+preview_id = "YOUR_PREVIEW_KV_ID_HERE" # Replace with your preview KV namespace ID
 
-# Pages configuration (you don't need routes for Pages)
+# KV Namespace for developer catalog
+# To create a KV namespace:
+#   wrangler kv:namespace create "DEVELOPER_CATALOG"
+[[kv_namespaces]]
+binding = "DEVELOPER_CATALOG"
+id = "YOUR_KV_ID_HERE" # Replace with your KV namespace ID
+preview_id = "YOUR_PREVIEW_KV_ID_HERE" # Replace with your preview KV namespace ID
+
+# Pages configuration
 [site]
 bucket = ".vercel/output/static"
 

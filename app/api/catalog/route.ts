@@ -1,114 +1,179 @@
-import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-import { logger } from '@/lib/utils';
+/**
+ * API routes for managing the developer catalog
+ * Supports KV storage with file system fallback
+ */
 
-// This would normally be protected with authentication in a real application
+import { NextResponse } from 'next/server';
+import { logger } from '@/lib/utils';
+import { handleApiError, ValidationError, NotFoundError } from '@/lib/errors';
+
+// Interface for developer data
+interface DeveloperEntry {
+  username: string;
+  displayName: string;
+  avatarUrl: string;
+  bio?: string;
+  followers?: number;
+  website?: string;
+  company?: string;
+  location?: string;
+  starCategories: Record<string, string[]>;
+  topStars: Array<{
+    name: string;
+    description: string;
+    stars: number;
+    category: string;
+  }>;
+  insightSummary: string;
+  lastUpdated: string;
+}
+
+// Interface for catalog structure
+interface Catalog {
+  topDevelopers: DeveloperEntry[];
+}
+
+// Helper to get KV namespace or fall back to file system
+async function getCatalog(env?: any): Promise<Catalog> {
+  try {
+    // Try to use KV if available
+    if (env?.DEVELOPER_CATALOG) {
+      const catalog = await env.DEVELOPER_CATALOG.get('catalog', { type: 'json' });
+      if (catalog) {
+        return catalog as Catalog;
+      }
+    }
+    
+    // Fall back to file system
+    const { readFile } = await import('fs/promises');
+    const { join } = await import('path');
+    const filePath = join(process.cwd(), 'public', 'data', 'developer-catalog.json');
+    const fileContent = await readFile(filePath, 'utf8');
+    return JSON.parse(fileContent) as Catalog;
+  } catch (error) {
+    logger.warn('Error reading catalog, returning empty catalog', error);
+    return { topDevelopers: [] };
+  }
+}
+
+// Helper to save catalog
+async function saveCatalog(catalog: Catalog, env?: any): Promise<void> {
+  try {
+    // Try to use KV if available
+    if (env?.DEVELOPER_CATALOG) {
+      await env.DEVELOPER_CATALOG.put('catalog', JSON.stringify(catalog));
+      return;
+    }
+    
+    // Fall back to file system
+    const { writeFile, mkdir } = await import('fs/promises');
+    const { join, dirname } = await import('path');
+    const filePath = join(process.cwd(), 'public', 'data', 'developer-catalog.json');
+    
+    // Ensure directory exists
+    await mkdir(dirname(filePath), { recursive: true });
+    
+    await writeFile(filePath, JSON.stringify(catalog, null, 2));
+  } catch (error) {
+    logger.error('Error saving catalog', error);
+    throw new Error('Failed to save catalog');
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    // Access env object from request context
+    const env = (request as any).env;
+    
+    const catalog = await getCatalog(env);
+    return NextResponse.json(catalog);
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
 export async function POST(request: Request) {
   try {
-    // Parse request body
     const developerData = await request.json();
     
-    // Basic validation
-    if (!developerData || !developerData.username) {
-      return NextResponse.json({ error: 'Invalid developer data' }, { status: 400 });
+    // Validate required fields
+    if (!developerData.username) {
+      throw new ValidationError('Username is required');
     }
     
-    // Path to the JSON file
-    const filePath = path.join(process.cwd(), 'public', 'data', 'developer-catalog.json');
+    // Access env object from request context
+    const env = (request as any).env;
     
-    // Read the existing catalog
-    let catalog;
-    try {
-      const fileContent = fs.readFileSync(filePath, 'utf8');
-      catalog = JSON.parse(fileContent);
-    } catch (error) {
-      // Initialize new catalog if file doesn't exist or is invalid
-      catalog = { topDevelopers: [] };
-    }
+    // Get current catalog
+    const catalog = await getCatalog(env);
     
     // Check if developer already exists
     const existingIndex = catalog.topDevelopers.findIndex(
-      (dev: any) => dev.username === developerData.username
+      dev => dev.username.toLowerCase() === developerData.username.toLowerCase()
     );
     
-    if (existingIndex >= 0) {
+    const updatedDeveloper: DeveloperEntry = {
+      ...developerData,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    if (existingIndex !== -1) {
       // Update existing developer
-      catalog.topDevelopers[existingIndex] = {
-        ...catalog.topDevelopers[existingIndex],
-        ...developerData
-      };
-      logger.info(`Updated developer in catalog: ${developerData.username}`);
+      catalog.topDevelopers[existingIndex] = updatedDeveloper;
     } else {
       // Add new developer
-      catalog.topDevelopers.push(developerData);
-      logger.info(`Added new developer to catalog: ${developerData.username}`);
+      catalog.topDevelopers.push(updatedDeveloper);
     }
     
-    // Write back to file
-    fs.writeFileSync(filePath, JSON.stringify(catalog, null, 2));
+    // Save the updated catalog
+    await saveCatalog(catalog, env);
     
-    return NextResponse.json({ 
-      success: true, 
-      message: existingIndex >= 0 ? 'Developer updated in catalog' : 'Developer added to catalog' 
+    return NextResponse.json({
+      success: true,
+      message: existingIndex !== -1 
+        ? `Developer ${developerData.username} updated in catalog`
+        : `Developer ${developerData.username} added to catalog`
     });
   } catch (error) {
-    logger.error('Error updating catalog', error);
-    return NextResponse.json({ error: 'Failed to update catalog' }, { status: 500 });
+    return handleApiError(error);
   }
 }
 
-export async function GET() {
-  try {
-    // Path to the JSON file
-    const filePath = path.join(process.cwd(), 'public', 'data', 'developer-catalog.json');
-    
-    // Read the catalog
-    const fileContent = fs.readFileSync(filePath, 'utf8');
-    const catalog = JSON.parse(fileContent);
-    
-    return NextResponse.json(catalog);
-  } catch (error) {
-    logger.error('Error reading catalog', error);
-    return NextResponse.json({ error: 'Failed to read catalog' }, { status: 500 });
-  }
-}
-
-// For removing developers
 export async function DELETE(request: Request) {
   try {
-    // Get username from query
-    const { searchParams } = new URL(request.url);
-    const username = searchParams.get('username');
+    // Get username from URL
+    const url = new URL(request.url);
+    const username = url.searchParams.get('username');
     
     if (!username) {
-      return NextResponse.json({ error: 'Username is required' }, { status: 400 });
+      throw new ValidationError('Username is required');
     }
     
-    // Path to the JSON file
-    const filePath = path.join(process.cwd(), 'public', 'data', 'developer-catalog.json');
+    // Access env object from request context
+    const env = (request as any).env;
     
-    // Read the existing catalog
-    const fileContent = fs.readFileSync(filePath, 'utf8');
-    const catalog = JSON.parse(fileContent);
+    // Get current catalog
+    const catalog = await getCatalog(env);
     
-    // Filter out the developer to remove
+    // Find and remove the developer
     const initialLength = catalog.topDevelopers.length;
     catalog.topDevelopers = catalog.topDevelopers.filter(
-      (dev: any) => dev.username !== username
+      dev => dev.username.toLowerCase() !== username.toLowerCase()
     );
     
+    // Check if any developer was removed
     if (catalog.topDevelopers.length === initialLength) {
-      return NextResponse.json({ error: 'Developer not found in catalog' }, { status: 404 });
+      throw new NotFoundError(`Developer ${username} not found in catalog`);
     }
     
-    // Write back to file
-    fs.writeFileSync(filePath, JSON.stringify(catalog, null, 2));
+    // Save the updated catalog
+    await saveCatalog(catalog, env);
     
-    logger.info(`Removed developer from catalog: ${username}`);
-    return NextResponse.json({ success: true, message: 'Developer removed from catalog' });
+    return NextResponse.json({
+      success: true,
+      message: `Developer ${username} removed from catalog`
+    });
   } catch (error) {
-    logger.error('Error removing developer from catalog', error);
-    return NextResponse.json({ error: 'Failed to remove developer from catalog' }, { status: 500 });
+    return handleApiError(error);
   }
 }
