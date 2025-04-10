@@ -1,3 +1,8 @@
+/**
+ * @fileoverview API route handler for computing repository categorizations
+ * Handles GitHub repository fetching, caching, and AI-powered categorization
+ */
+
 import { NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
 import { getDefaultLLMProvider, LLMMessage, createLLMClient, LLMProvider } from '@/lib/llm';
@@ -6,7 +11,9 @@ import { logger } from '@/lib/utils';
 export const runtime = 'edge';
 export const maxDuration = 300; // Extend function timeout to 5 minutes
 
-// Initialize Octokit with performance optimizations
+/**
+ * Octokit instance configured with performance optimizations
+ */
 const octokit = new Octokit({
   auth: process.env.GITHUB_ACCESS_TOKEN,
   request: {
@@ -25,29 +32,56 @@ function getLLMClient(): LLMProvider {
   return llmClient;
 }
 
-// Define types to handle the GitHub API response
+/**
+ * Interface for GitHub starred repository data
+ * @interface StarredRepo
+ */
 interface StarredRepo {
+  /** Full repository name in owner/repo format */
   full_name: string;
+  /** Repository description or null if none */
   description: string | null;
+  /** Primary programming language or null if none */
   language: string | null;
+  /** Repository topics/tags */
   topics?: string[];
+  /** Number of repository stars */
   stargazers_count: number;
 }
 
-// Simple in-memory cache with expiration
+/**
+ * Cache entry with expiration time
+ * @interface CacheEntry
+ * @template T Type of cached data
+ */
 interface CacheEntry<T> {
+  /** The cached data */
   data: T;
+  /** Timestamp when the cache entry expires */
   expiry: number;
 }
 
+/**
+ * Simple in-memory cache implementation with expiration
+ * @class SimpleCache
+ * @template T Type of cached data
+ */
 class SimpleCache<T> {
   private cache: Map<string, CacheEntry<T>> = new Map();
   private readonly TTL: number; // Time to live in milliseconds
   
+  /**
+   * @param ttlMinutes Time-to-live in minutes for cache entries
+   */
   constructor(ttlMinutes: number = 60) {
     this.TTL = ttlMinutes * 60 * 1000;
   }
   
+  /**
+   * Get a value from cache if it exists and hasn't expired
+   * @param key Cache key
+   * @returns Cached value or null if not found/expired
+   */
   get(key: string): T | null {
     const entry = this.cache.get(key);
     if (!entry) return null;
@@ -60,6 +94,11 @@ class SimpleCache<T> {
     return entry.data;
   }
   
+  /**
+   * Store a value in cache with expiration
+   * @param key Cache key
+   * @param data Data to cache
+   */
   set(key: string, data: T): void {
     this.cache.set(key, {
       data,
@@ -72,6 +111,12 @@ class SimpleCache<T> {
 const starsCache = new SimpleCache<StarredRepo[]>(30); // 30 minute cache for starred repos
 const categoriesCache = new SimpleCache<Record<string, string[]>>(30); // 30 minute cache for categories
 
+/**
+ * Fetches all starred repositories for a given user with optimized pagination
+ * @param octokit Configured Octokit instance
+ * @param username GitHub username
+ * @returns Array of starred repository data
+ */
 async function getAllStarredRepos(octokit: Octokit, username: string): Promise<StarredRepo[]> {
   try {
     // Check cache first
@@ -165,7 +210,11 @@ async function getAllStarredRepos(octokit: Octokit, username: string): Promise<S
   }
 }
 
-// Helper function to extract repository data from API response - optimized version
+/**
+ * Extracts relevant repository data from GitHub API response
+ * @param data Raw API response data
+ * @returns Cleaned and formatted repository data
+ */
 function extractRepoData(data: any[]): StarredRepo[] {
   // Pre-allocate array size for better performance
   const result = new Array(data.length);
@@ -188,6 +237,12 @@ function extractRepoData(data: any[]): StarredRepo[] {
   return result;
 }
 
+/**
+ * Categorizes repositories using AI into logical groups
+ * @param repos Array of repositories to categorize
+ * @param username GitHub username for caching
+ * @returns Record of categories and their repositories
+ */
 async function categorizeRepos(repos: StarredRepo[], username: string) {
   // Check cache first
   const cacheKey = `categories-${username}-${repos.length}`;
@@ -385,6 +440,10 @@ ${JSON.stringify(batch)}`;
 const factCache = new SimpleCache<string[]>(1440); // 24 hour cache
 const FACT_CACHE_KEY = 'dev-facts';
 
+/**
+ * Generates a random programming/computer science fact
+ * @returns A quirky developer fact
+ */
 async function getQuirkyDevFact() {
   // Try to get a random fact from cache first
   const cachedFacts = factCache.get(FACT_CACHE_KEY);
@@ -439,6 +498,11 @@ async function getQuirkyDevFact() {
 // Track current requests to prevent duplicate processing
 const pendingRequests = new Map<string, Promise<any>>();
 
+/**
+ * POST handler for repository categorization requests
+ * @param request HTTP request object
+ * @returns JSON response with categorized repositories or error
+ */
 export async function POST(request: Request) {
   const startTime = Date.now();
   
