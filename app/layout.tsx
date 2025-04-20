@@ -1,12 +1,13 @@
 import '/styles/globals.css';
 
 import { Inter } from 'next/font/google';
+import { Toaster } from 'react-hot-toast';
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'GitHub Username Validator',
-  description: 'Validate and compute GitHub usernames',
+  title: 'Star Categorizer - Organize GitHub Stars',
+  description: 'Automatically organize your GitHub starred repositories into meaningful categories',
 }
 
 export default function RootLayout({
@@ -16,7 +17,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        {children}
+        <Toaster position="bottom-right" />
+      </body>
     </html>
   )
 }
