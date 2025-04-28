@@ -7,9 +7,44 @@ import { NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
 import { getDefaultLLMProvider, LLMMessage, createLLMClient, LLMProvider } from '@/lib/llm';
 import { logger } from '@/lib/utils';
+import { dbService } from '@/lib/services/DatabaseService';
 
+// Using edge runtime for the compute route which doesn't directly use SQLite
 export const runtime = 'edge';
 export const maxDuration = 300; // Extend function timeout to 5 minutes
+
+// Set SKIP_DB_IN_EDGE for edge runtime
+process.env.SKIP_DB_IN_EDGE = 'true';
+
+// Helper function to save repositories to database
+async function saveCategoriesToDb(categories: Record<string, string[]>) {
+  // Skip if we're in Edge runtime or SKIP_DB_IN_EDGE isn't set
+  if (runtime === 'edge' || process.env.SKIP_DB_IN_EDGE !== 'true') {
+    logger.info('Skipping database operations in Edge runtime');
+    return { success: false, reason: 'Database operations not supported in Edge runtime' };
+  }
+  
+  try {
+    const results = Object.entries(categories).map(([category, repos]) => {
+      try {
+        const repoObjects = repos.map(repo => ({
+          full_name: repo,
+          description: null
+        }));
+        
+        return dbService.createCategoryWithRepositories(category, repoObjects);
+      } catch (error) {
+        logger.error(`Error saving category ${category}`, error);
+        return { error: true, category };
+      }
+    });
+    
+    return { success: true, results };
+  } catch (error) {
+    logger.error('Error saving categories to database', error);
+    return { success: false, error };
+  }
+}
 
 /**
  * Octokit instance configured with performance optimizations

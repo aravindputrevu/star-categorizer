@@ -58,10 +58,10 @@ export default function GithubUsernameForm() {
     return () => clearInterval(intervalId)
   }, [])
 
-  // Handle form submission
+  // Handle form submission to save to SQLite DB
   const handleCreateGitHubList = useCallback(async (category: string, repositories: string[]) => {
     if (!username) {
-      toast.error('Username is required to create a GitHub list')
+      toast.error('Username is required to create a list')
       return
     }
     
@@ -69,47 +69,68 @@ export default function GithubUsernameForm() {
     setCreatingListCategory(category)
     
     try {
-      const createResponse = await fetch('/api/github-lists', {
+      // Save to local SQLite database
+      const response = await fetch('/api/categories', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username,
-          listName: category,
-          description: `Categorized stars: ${category}`
+          categoryName: category,
+          repositories: repositories.map(repo => ({
+            full_name: repo,
+            description: null // We don't have descriptions in the current UI flow
+          }))
         })
       })
       
-      if (!createResponse.ok) {
-        const errorData = await createResponse.json()
-        throw new Error(errorData.error || 'Failed to create GitHub list')
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to save category to database')
       }
       
-      const createData = await createResponse.json()
+      const data = await response.json()
       
-      const addResponse = await fetch('/api/github-lists', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username,
-          listName: category,
-          repositories
+      // Also create GitHub list for backward compatibility
+      try {
+        const createResponse = await fetch('/api/github-lists', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            username,
+            listName: category,
+            description: `Categorized stars: ${category}`
+          })
         })
-      })
-      
-      if (!addResponse.ok) {
-        const errorData = await addResponse.json()
-        throw new Error(errorData.error || 'Failed to add repositories to GitHub list')
+        
+        if (createResponse.ok) {
+          const addResponse = await fetch('/api/github-lists', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              username,
+              listName: category,
+              repositories
+            })
+          })
+          
+          if (addResponse.ok) {
+            const addData = await addResponse.json()
+            console.log(`Also synced to GitHub list: ${addData.addedCount} repositories`)
+          }
+        }
+      } catch (githubError) {
+        console.error('GitHub sync failed but local save succeeded', githubError)
+        // Continue since local save succeeded
       }
       
-      const addData = await addResponse.json()
-      
-      toast.success(`Created GitHub list "${category}" with ${addData.addedCount} repositories`)
+      toast.success(`Saved category "${category}" with ${data.addedCount} repositories`)
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create GitHub list')
+      toast.error(error.message || 'Failed to save category')
     } finally {
       setIsCreatingList(false)
       setCreatingListCategory('')
@@ -248,7 +269,7 @@ export default function GithubUsernameForm() {
                     <button 
                       onClick={() => handleCreateGitHubList(category, repos)}
                       className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full hover:bg-green-200 flex items-center"
-                      title="Create GitHub List"
+                      title="Save List"
                       disabled={isCreatingList}
                     >
                       {isCreatingList && creatingListCategory === category ? (
@@ -257,14 +278,14 @@ export default function GithubUsernameForm() {
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          Creating...
+                          Saving...
                         </span>
                       ) : (
                         <span className="flex items-center">
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                           </svg>
-                          Create List
+                          Save List
                         </span>
                       )}
                     </button>

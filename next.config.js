@@ -21,11 +21,17 @@ const nextConfig = {
         fs: false,
         net: false,
         tls: false,
+        path: false,
         encoding: false,
+        bindings: false,
       };
     }
 
     return config;
+  },
+  // Configure SQLite-using API routes to use Node.js runtime instead of Edge
+  experimental: {
+    serverComponentsExternalPackages: ['better-sqlite3']
   },
 }
 

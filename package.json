@@ -24,6 +24,7 @@
     "@types/react-dom": "18.2.7",
     "autoprefixer": "^10.4.20",
     "axios": "^1.8.3",
+    "better-sqlite3": "^11.9.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "encoding": "^0.1.13",
@@ -42,6 +43,7 @@
   "devDependencies": {
     "@cloudflare/next-on-pages": "^1.9.0",
     "@shadcn/ui": "^0.0.4",
+    "@types/better-sqlite3": "^7.6.13",
     "wrangler": "^3.30.0"
   }
 }
