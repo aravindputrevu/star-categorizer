@@ -6,28 +6,44 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "pages:build": "npx @cloudflare/next-on-pages",
+    "pages:deploy": "npx wrangler pages deploy .vercel/output/static",
+    "pages:watch": "npx wrangler pages dev .vercel/output/static --compatibility-date=2023-11-21",
+    "wrangler:build": "next build && npx @cloudflare/next-on-pages",
+    "wrangler:deploy": "wrangler pages deploy .vercel/output/static",
+    "wrangler:dev": "wrangler pages dev .vercel/output/static --compatibility-date=2023-11-21"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@google/generative-ai": "^0.3.0",
     "@octokit/rest": "^21.0.2",
     "@radix-ui/react-slot": "^1.1.0",
     "@types/node": "20.4.5",
     "@types/react": "18.2.17",
     "@types/react-dom": "18.2.7",
     "autoprefixer": "^10.4.20",
+    "axios": "^1.8.3",
+    "better-sqlite3": "^11.9.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "encoding": "^0.1.13",
     "lucide-react": "^0.438.0",
     "next": "13.4.12",
     "postcss": "^8.4.44",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "react-hot-toast": "^2.5.2",
     "tailwind-merge": "^2.5.2",
     "tailwindcss": "^3.4.10",
     "tailwindcss-animate": "^1.0.7",
-    "typescript": "5.1.6"
+    "typescript": "5.1.6",
+    "undici": "^7.5.0"
   },
   "devDependencies": {
-    "@shadcn/ui": "^0.0.4"
+    "@cloudflare/next-on-pages": "^1.9.0",
+    "@shadcn/ui": "^0.0.4",
+    "@types/better-sqlite3": "^7.6.13",
+    "wrangler": "^3.30.0"
   }
 }
