@@ -202,7 +202,7 @@ export default function GithubUsernameForm() {
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">Star Categorizer</CardTitle>
-          <p className="text-center text-gray-500 text-sm">Organize your GitHub starred repositories into meaningful categories</p>
+          <p className="text-center text-muted-foreground text-sm">Organize your GitHub starred repositories into meaningful categories</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -215,11 +215,11 @@ export default function GithubUsernameForm() {
                 className="w-full"
               />
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && <p className="text-destructive text-sm">{error}</p>}
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? loadingMessage : 'Categorize Stars'}
             </Button>
-            <p className="text-xs text-gray-400 text-center">
+            <p className="text-xs text-muted-foreground text-center">
               {isLoading ? 'This may take a moment depending on how many repositories you have starred. Large collections will be processed in batches.' : ''}
             </p>
           </form>
@@ -227,28 +227,28 @@ export default function GithubUsernameForm() {
       </Card>
 
       {noStars && (
-  <Card className="w-full max-w-md mx-auto bg-white">
+  <Card className="w-full max-w-md mx-auto">
     <CardHeader className="pb-2">
-      <CardTitle className="text-xl font-bold text-gray-900">No Stars Found</CardTitle>
-      <p className="text-gray-500 text-sm">This GitHub user doesn't have any starred repositories yet.</p>
+      <CardTitle className="text-xl font-bold">No Stars Found</CardTitle>
+      <p className="text-muted-foreground text-sm">This GitHub user doesn't have any starred repositories yet.</p>
     </CardHeader>
     <CardContent>
-      <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-        <h3 className="font-medium text-blue-800 mb-2">Here's a fun developer fact instead:</h3>
-        <p className="text-gray-700 italic">{devFact}</p>
+      <div className="p-4 bg-accent rounded-lg border">
+        <h3 className="font-medium text-accent-foreground mb-2">Here's a fun developer fact instead:</h3>
+        <p className="text-foreground italic">{devFact}</p>
       </div>
     </CardContent>
   </Card>
 )}
 
       {categories && (
-  <Card className="w-full max-w-5xl mx-auto bg-white">
+  <Card className="w-full max-w-5xl mx-auto">
     <CardHeader className="pb-2">
-      <CardTitle className="text-2xl font-bold text-gray-900">Starred Repository Categories</CardTitle>
+      <CardTitle className="text-2xl font-bold">Starred Repository Categories</CardTitle>
       <div className="flex flex-col md:flex-row md:justify-between md:items-center">
-        <p className="text-gray-500 text-sm">We analyzed your {starCount} starred repositories and grouped them into {categoryCount} categories.</p>
+        <p className="text-muted-foreground text-sm">We analyzed your {starCount} starred repositories and grouped them into {categoryCount} categories.</p>
         {processingTime && (
-          <p className="text-gray-400 text-xs mt-1 md:mt-0">Processing time: {processingTime}</p>
+          <p className="text-muted-foreground text-xs mt-1 md:mt-0">Processing time: {processingTime}</p>
         )}
       </div>
     </CardHeader>
@@ -260,15 +260,15 @@ export default function GithubUsernameForm() {
             if (!Array.isArray(repos) || repos.length === 0) return null;
             
             return (
-              <div key={category} className="border rounded-lg p-3 bg-gray-50 shadow-sm hover:shadow-md transition-shadow duration-200">
+              <div key={category} className="border rounded-lg p-3 bg-muted/50 shadow-sm hover:shadow-md transition-shadow duration-200">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-gray-800 text-lg truncate" title={category}>
+                  <h3 className="font-semibold text-foreground text-lg truncate" title={category}>
                     {category}
                   </h3>
                   <div className="flex items-center gap-2">
-                    <button 
+                    <button
                       onClick={() => handleCreateGitHubList(category, repos)}
-                      className="bg-green-100 text-green-800 text-xs font-medium px-2 py-1 rounded-full hover:bg-green-200 flex items-center"
+                      className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 text-xs font-medium px-2 py-1 rounded-full hover:bg-green-200 dark:hover:bg-green-900/50 flex items-center transition-colors"
                       title="Save List"
                       disabled={isCreatingList}
                     >
@@ -289,21 +289,21 @@ export default function GithubUsernameForm() {
                         </span>
                       )}
                     </button>
-                    <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                    <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs font-medium px-2.5 py-0.5 rounded-full">
                       {repos.length}
                     </span>
                   </div>
                 </div>
                 <div className="space-y-1 max-h-56 overflow-y-auto pr-1 overscroll-contain">
                   {repos.map((repo) => (
-                    <div key={repo} className="bg-white p-2 rounded border hover:bg-gray-50">
+                    <div key={repo} className="bg-background p-2 rounded border hover:bg-accent transition-colors">
                       <a
                         href={`https://github.com/${repo}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center"
+                        className="text-sm text-primary hover:text-primary/80 hover:underline flex items-center"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-muted-foreground flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                         </svg>
                         <span className="truncate">{repo}</span>

@@ -2,6 +2,8 @@ import '/styles/globals.css';
 
 import { Inter } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -16,32 +18,42 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <header className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <div className="flex items-center">
-                <a href="/" className="text-lg font-bold text-gray-900">Star Categorizer</a>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <header className="bg-background shadow-sm border-b border-border">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-16">
+                <div className="flex items-center">
+                  <a href="/" className="text-lg font-bold text-foreground">Star Categorizer</a>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <nav className="flex space-x-4">
+                    <a href="/" className="text-muted-foreground hover:text-foreground px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                      Home
+                    </a>
+                    <a href="/saved-lists" className="text-muted-foreground hover:text-foreground px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                      Saved Lists
+                    </a>
+                    <a href="/catalog" className="text-muted-foreground hover:text-foreground px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                      Developer Catalog
+                    </a>
+                  </nav>
+                  <ThemeToggle />
+                </div>
               </div>
-              <nav className="flex space-x-4">
-                <a href="/" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  Home
-                </a>
-                <a href="/saved-lists" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  Saved Lists
-                </a>
-                <a href="/catalog" className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium">
-                  Developer Catalog
-                </a>
-              </nav>
             </div>
-          </div>
-        </header>
-        <main>
-          {children}
-        </main>
-        <Toaster position="bottom-right" />
+          </header>
+          <main className="bg-background min-h-screen">
+            {children}
+          </main>
+          <Toaster position="bottom-right" />
+        </ThemeProvider>
       </body>
     </html>
   )

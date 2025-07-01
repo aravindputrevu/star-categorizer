@@ -111,7 +111,7 @@ export default function AddDeveloperPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold">Add Developer to Catalog</h1>
-            <p className="text-gray-500">Add a GitHub user to the developer catalog</p>
+            <p className="text-muted-foreground">Add a GitHub user to the developer catalog</p>
           </div>
           <Link href="/catalog">
             <Button variant="outline">
@@ -124,7 +124,7 @@ export default function AddDeveloperPage() {
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">Add GitHub Developer</CardTitle>
-          <p className="text-center text-gray-500 text-sm">
+          <p className="text-center text-muted-foreground text-sm">
             Enter a GitHub username to add them to the catalog
           </p>
         </CardHeader>
@@ -140,20 +140,20 @@ export default function AddDeveloperPage() {
                 disabled={isLoading || success}
               />
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {error && <p className="text-destructive text-sm">{error}</p>}
             {success && (
-              <p className="text-green-500 text-sm">
+              <p className="text-green-600 dark:text-green-400 text-sm">
                 Developer added successfully! Redirecting to catalog...
               </p>
             )}
-            <Button 
-              type="submit" 
-              className="w-full" 
+            <Button
+              type="submit"
+              className="w-full"
               disabled={isLoading || success}
             >
               {isLoading ? 'Processing...' : 'Add to Catalog'}
             </Button>
-            <p className="text-xs text-gray-400 text-center">
+            <p className="text-xs text-muted-foreground text-center">
               {isLoading ? 'This may take a moment as we analyze the repositories...' : ''}
             </p>
           </form>

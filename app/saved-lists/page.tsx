@@ -45,7 +45,7 @@ export default function SavedLists() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Your Saved Lists</h1>
-          <p className="text-gray-500">All your categorized GitHub star collections</p>
+          <p className="text-muted-foreground">All your categorized GitHub star collections</p>
         </div>
         <Link href="/">
           <Button variant="outline">Categorize More Stars</Button>
@@ -54,14 +54,14 @@ export default function SavedLists() {
       
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-800"></div>
-          <span className="ml-3 text-gray-600">Loading your lists...</span>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-foreground"></div>
+          <span className="ml-3 text-muted-foreground">Loading your lists...</span>
         </div>
       ) : error ? (
-        <Card className="bg-red-50 border-red-100">
+        <Card className="bg-destructive/10 border-destructive/20">
           <CardContent className="pt-6">
-            <p className="text-red-600">{error}</p>
-            <p className="text-sm text-gray-600 mt-2">
+            <p className="text-destructive">{error}</p>
+            <p className="text-sm text-muted-foreground mt-2">
               This could be caused by a configuration issue or if the database is not accessible.
             </p>
           </CardContent>
@@ -70,8 +70,8 @@ export default function SavedLists() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center p-6">
-              <h3 className="text-xl font-medium text-gray-900 mb-2">No Saved Lists Yet</h3>
-              <p className="text-gray-500 mb-4">
+              <h3 className="text-xl font-medium mb-2">No Saved Lists Yet</h3>
+              <p className="text-muted-foreground mb-4">
                 You haven't saved any categorized GitHub star lists yet.
               </p>
               <Link href="/">
@@ -89,7 +89,7 @@ export default function SavedLists() {
                   <span className="text-lg font-semibold truncate" title={list.name}>
                     {list.name}
                   </span>
-                  <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                  <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs font-medium px-2.5 py-0.5 rounded-full">
                     {list.repositoryCount}
                   </span>
                 </CardTitle>
@@ -97,7 +97,7 @@ export default function SavedLists() {
               <CardContent>
                 <div className="flex justify-between items-center">
                   <Link href={`/api/lists/${list.id}/stars`} passHref>
-                    <Button variant="ghost" size="sm" className="text-blue-600 hover:text-blue-800">
+                    <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
                       View Repositories
                     </Button>
                   </Link>
