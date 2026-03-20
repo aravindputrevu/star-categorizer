@@ -1,19 +1,24 @@
 import { logger } from '@/lib/utils';
 
+// Check if we're in Edge runtime or should skip database
+const isEdgeRuntime = process.env.SKIP_DB_IN_EDGE === 'true' ||
+                     process.env.NEXT_RUNTIME === 'edge' ||
+                     typeof window !== 'undefined'; // Client-side detection
+
 // Dynamically import node modules to avoid Edge runtime errors
 let Database: any = null;
 let path: any = null;
 let fs: any = null;
 
 // Only import these modules in environments that support them
-if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'production' || process.env.SKIP_DB_IN_EDGE) {
+if (!isEdgeRuntime && typeof process !== 'undefined') {
   try {
-    // Dynamic imports
+    // Dynamic imports - only in Node.js runtime
     Database = require('better-sqlite3');
     path = require('path');
     fs = require('fs');
   } catch (error) {
-    logger.warn('Failed to import Node.js modules in Edge environment', error);
+    logger.warn('Failed to import Node.js modules', error as Record<string, any>);
   }
 }
 
@@ -30,7 +35,7 @@ export class DatabaseService {
   private constructor() {
     try {
       // Check if we're in an environment that supports SQLite
-      if (Database && path && fs && (process.env.NODE_ENV !== 'production' || process.env.SKIP_DB_IN_EDGE)) {
+      if (!isEdgeRuntime && Database && path && fs) {
         // Ensure the data directory exists
         const dataDir = path.join(process.cwd(), 'data');
         if (!fs.existsSync(dataDir)) {
@@ -148,7 +153,7 @@ export class DatabaseService {
       );
       
       // Start transaction for better performance
-      const transaction = this.db.transaction((repos) => {
+      const transaction = this.db.transaction((repos: Array<{ full_name: string; description: string | null }>) => {
         let addedCount = 0;
         for (const repo of repos) {
           const result = insertStmt.run(repo.full_name, repo.description, categoryId);

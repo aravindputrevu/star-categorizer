@@ -96,11 +96,9 @@ export default function CatalogPage() {
             <p className="text-muted-foreground">Discover how top developers organize their GitHub stars</p>
           </div>
           <div className="flex gap-2">
-            <Link href="/catalog/add">
-              <Button variant="default">
-                Add Developer
-              </Button>
-            </Link>
+            <Button variant="secondary" disabled title="Catalog writes require a writable backend">
+              Read-only Catalog
+            </Button>
             <Link href="/">
               <Button variant="outline">
                 Try With Your Username

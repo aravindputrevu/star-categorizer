@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: true
+
+reviews:
+  path_instructions:
+    - path: "app/api/**/*.ts"
+      instructions: |
+        This repository uses Next.js App Router route handlers with a mix of Edge and Node.js runtimes.
+        Keep Edge routes free of Node-only modules such as fs, path, and better-sqlite3.
+        If a route depends on SQLite or other Node-only APIs, it must explicitly declare `export const runtime = 'nodejs'`.
+        Prefer structured `logger.error(...)` calls and clear `NextResponse.json(...)` error payloads with appropriate status codes.
+    - path: "{app,components}/**/*.{ts,tsx}"
+      instructions: |
+        Follow the existing Next.js + shadcn/ui patterns in this repo.
+        Reuse the shared Button, Card, and Input primitives when possible instead of introducing one-off UI elements.
+        Preserve explicit loading, empty, and error states in client components, and avoid unnecessary dependencies or broad visual rewrites.
+    - path: "lib/**/*.ts"
+      instructions: |
+        Utility and service modules should stay narrowly scoped and TypeScript-safe.
+        Preserve the existing `logger` helper pattern for server-side logging and avoid adding browser-only globals unless they are explicitly guarded.
+
+  finishing_touches:
+    custom:
+      - name: "cleanup stale imports"
+        instructions: |
+          Scan the changed files for unused imports and remove them.
+          Preserve imports used in type positions.
+          Do not reorder or regroup existing imports unless that is required to keep the file valid.
+      - name: "tighten types"
+        instructions: |
+          Replace `any` types in the changed TypeScript and TSX files with the most specific correct types available from the surrounding code.
+          Add explicit return types to exported functions, route handlers, and shared utilities when they improve clarity.
+          Do not widen public interfaces or add type assertions unless they are actually required.
+      - name: "remove console logs"
+        instructions: |
+          Find and remove `console.log`, `console.warn`, and `console.error` calls from the changed files.
+          Leave the project's shared `logger` utility in `lib/utils.ts` untouched.
+          In client components, preserve user-facing feedback patterns such as toasts instead of silently swallowing failures.
+      - name: "harden api routes"
+        instructions: |
+          Review changed files under `app/api/**` and supporting service modules for runtime and error-handling issues.
+          Ensure awaited calls are wrapped in appropriate error handling, route handlers return structured `NextResponse.json(...)` responses, and Node-only dependencies are not pulled into Edge routes.
+          Reuse the repository's existing `logger` pattern when recording failures.
+      - name: "add edge case tests"
+        instructions: |
+          Review the changed source files and identify important edge cases or failure paths that are currently untested.
+          If an existing automated test pattern is available for the touched area, add focused regression coverage using that pattern.
+          If no formal test framework exists for the touched area, prefer adding or updating a lightweight validation script that matches the repository's existing root-level `test-api*.js` style.

@@ -5,12 +5,15 @@ import { logger } from '@/lib/utils';
 // Keep this as edge runtime to avoid SQLite issues
 export const runtime = 'edge';
 
-// Create GitHub client
-const token = process.env.GITHUB_ACCESS_TOKEN;
-if (!token) {
-  throw new Error('GITHUB_ACCESS_TOKEN is not set');
+function getOctokit() {
+  const token = process.env.GITHUB_ACCESS_TOKEN;
+
+  if (!token) {
+    return null;
+  }
+
+  return new Octokit({ auth: token });
 }
-const octokit = new Octokit({ auth: token });
 
 /**
  * POST handler for GitHub list operations
@@ -20,6 +23,17 @@ const octokit = new Octokit({ auth: token });
  */
 export async function POST(request: NextRequest) {
   try {
+    const octokit = getOctokit();
+
+    if (!octokit) {
+      return NextResponse.json(
+        {
+          error: 'GitHub list syncing is not configured in this deployment.',
+        },
+        { status: 503 }
+      );
+    }
+
     const body = await request.json();
     const { username, listName, description, repositories } = body;
 

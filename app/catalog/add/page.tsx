@@ -91,7 +91,8 @@ export default function AddDeveloperPage() {
       })
 
       if (!catalogResponse.ok) {
-        throw new Error('Failed to add developer to catalog')
+        const errorData = await catalogResponse.json().catch(() => null)
+        throw new Error(errorData?.error || 'Failed to add developer to catalog')
       }
 
       setSuccess(true)
@@ -125,7 +126,7 @@ export default function AddDeveloperPage() {
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-center">Add GitHub Developer</CardTitle>
           <p className="text-center text-muted-foreground text-sm">
-            Enter a GitHub username to add them to the catalog
+            Enter a GitHub username to add them to the catalog when writable storage is available
           </p>
         </CardHeader>
         <CardContent>
