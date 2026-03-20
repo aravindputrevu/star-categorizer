@@ -7,7 +7,6 @@ import { NextResponse } from 'next/server';
 import { Octokit } from '@octokit/rest';
 import { getDefaultLLMProvider, LLMMessage, createLLMClient, LLMProvider } from '@/lib/llm';
 import { logger } from '@/lib/utils';
-import { dbService } from '@/lib/services/DatabaseService';
 
 // Using edge runtime for the compute route which doesn't directly use SQLite
 export const runtime = 'edge';
@@ -16,44 +15,21 @@ export const maxDuration = 300; // Extend function timeout to 5 minutes
 // Set SKIP_DB_IN_EDGE for edge runtime
 process.env.SKIP_DB_IN_EDGE = 'true';
 
-// Helper function to save repositories to database
-async function saveCategoriesToDb(categories: Record<string, string[]>) {
-  // Skip if we're in Edge runtime or SKIP_DB_IN_EDGE isn't set
-  if (runtime === 'edge' || process.env.SKIP_DB_IN_EDGE !== 'true') {
-    logger.info('Skipping database operations in Edge runtime');
-    return { success: false, reason: 'Database operations not supported in Edge runtime' };
-  }
-  
-  try {
-    const results = Object.entries(categories).map(([category, repos]) => {
-      try {
-        const repoObjects = repos.map(repo => ({
-          full_name: repo,
-          description: null
-        }));
-        
-        return dbService.createCategoryWithRepositories(category, repoObjects);
-      } catch (error) {
-        logger.error(`Error saving category ${category}`, error);
-        return { error: true, category };
-      }
-    });
-    
-    return { success: true, results };
-  } catch (error) {
-    logger.error('Error saving categories to database', error);
-    return { success: false, error };
-  }
-}
-
 /**
  * Octokit instance configured with performance optimizations
  */
-const octokit = new Octokit({
+const authenticatedOctokit = new Octokit({
   auth: process.env.GITHUB_ACCESS_TOKEN,
   request: {
     timeout: 10000, // 10 second timeout for API requests
     retries: 2 // Auto-retry failed requests
+  }
+});
+
+const publicOctokit = new Octokit({
+  request: {
+    timeout: 10000,
+    retries: 2
   }
 });
 
@@ -240,6 +216,19 @@ async function getAllStarredRepos(octokit: Octokit, username: string): Promise<S
     
     return allStars;
   } catch (error) {
+    if (
+      octokit === authenticatedOctokit &&
+      typeof error === 'object' &&
+      error !== null &&
+      (
+        (error as { status?: number }).status === 401 ||
+        (error as { message?: string }).message?.includes('Bad credentials')
+      )
+    ) {
+      logger.warn('GitHub token rejected, retrying public star fetch without auth', { username });
+      return getAllStarredRepos(publicOctokit, username);
+    }
+
     logger.error('Error fetching starred repos', error, { username });
     throw error;
   }
@@ -569,7 +558,7 @@ export async function POST(request: Request) {
     // Create a new promise for this request
     const resultPromise = (async () => {
       // Fetch starred repositories
-      const starredRepos = await getAllStarredRepos(octokit, username);
+      const starredRepos = await getAllStarredRepos(authenticatedOctokit, username);
       logger.info('Retrieved starred repositories', { 
         username, 
         count: starredRepos.length 

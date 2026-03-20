@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     if (description && !repositories) {
       // Create a new list
       try {
-        await octokit.rest.stars.createListForAuthenticatedUser({
+        await octokit.request('POST /user/starred-lists', {
           name: listName,
           description: description || `Categorized stars: ${listName}`
         });
@@ -63,12 +63,10 @@ export async function POST(request: NextRequest) {
     // Add repositories to a list
     else if (repositories && Array.isArray(repositories)) {
       // First, get all the user's lists
-      const lists = await octokit.rest.stars.listStarredLists({
-        username
-      });
+      const lists = await octokit.request('GET /user/starred-lists');
       
       // Find the target list
-      const targetList = lists.data.find(list => list.name === listName);
+      const targetList = lists.data.find((list: any) => list.name === listName);
       
       if (!targetList) {
         return NextResponse.json({ 
@@ -83,8 +81,8 @@ export async function POST(request: NextRequest) {
         try {
           const [owner, repoName] = repo.split('/');
           
-          await octokit.rest.stars.addStarRepoToList({
-            list_name: listName,
+          await octokit.request('PUT /user/starred-lists/{list_id}/repos/{owner}/{repo}', {
+            list_id: targetList.id,
             owner,
             repo: repoName
           });
