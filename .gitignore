@@ -4,4 +4,7 @@ node_modules
 .DS_Store
 .vercel
 
-
+# Local data and tool settings
+data/*.db
+.claude/settings.local.json
+*.tsbuildinfo

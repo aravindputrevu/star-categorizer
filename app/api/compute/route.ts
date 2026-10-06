@@ -392,7 +392,7 @@ ${JSON.stringify(batch)}`;
         logger.info(`Retrying batch with fallback model`, { batchNumber: index + 1 });
         const fallbackClient = createLLMClient({
           provider: process.env.FALLBACK_LLM_PROVIDER || process.env.DEFAULT_LLM_PROVIDER || 'anthropic',
-          model: process.env.FALLBACK_LLM_MODEL || 'claude-3-sonnet-20240229',
+          model: process.env.FALLBACK_LLM_MODEL, // Unset: the fallback provider uses its own default model
           temperature: 0.6,
           maxTokens: 4096
         });

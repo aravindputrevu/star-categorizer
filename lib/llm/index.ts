@@ -112,14 +112,14 @@ export function getDefaultLLMProvider(): LLMProvider {
     ? {
         provider: 'gemini',
         apiKey: process.env.GEMINI_API_KEY,
-        model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+        model: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
         temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.2'),
         maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '4096', 10)
       }
     : {
         provider: 'anthropic',
         apiKey: process.env.ANTHROPIC_API_KEY,
-        model: process.env.CLAUDE_MODEL || 'claude-3-haiku-20240307',
+        model: process.env.CLAUDE_MODEL || 'claude-opus-5-5',
         temperature: parseFloat(process.env.LLM_TEMPERATURE || '0.2'),
         maxTokens: parseInt(process.env.LLM_MAX_TOKENS || '4096', 10)
       };

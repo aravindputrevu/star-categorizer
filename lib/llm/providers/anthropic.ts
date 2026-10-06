@@ -15,9 +15,9 @@ export interface AnthropicConfig extends LLMProviderConfig {
 export class AnthropicProvider extends LLMProvider {
   private client: Anthropic;
   private models = {
-    default: 'claude-3-haiku-20240307',
-    fast: 'claude-3-haiku-20240307',
-    powerful: 'claude-3-sonnet-20240229',
+    default: 'claude-opus-5-5',
+    fast: 'claude-haiku-4-5',
+    powerful: 'claude-opus-5-5',
   };
 
   constructor(config: AnthropicConfig) {
@@ -43,27 +43,27 @@ export class AnthropicProvider extends LLMProvider {
       // Use specified model or fallback to default
       const model = this.config.model || this.models.default;
       
-      // Call the Anthropic API with proper typing
+      // Call the Anthropic API with proper typing.
+      // No temperature: current Claude models (Opus 5.5, Sonnet 5.5) reject sampling parameters.
       const response = await this.client.messages.create({
         model,
         messages: formattedMessages as any, // Type casting to satisfy Anthropic SDK
         max_tokens: this.config.maxTokens || 4096, // Ensure we have a number
-        temperature: this.config.temperature || 0.2, // Ensure we have a number
       });
-      
-      // Check if response is valid and has content
-      if (Array.isArray(response.content) && response.content.length > 0) {
-        const content = response.content[0];
-        
-        if ('text' in content) {
-          return {
-            text: content.text,
-            raw: response,
-          };
-        }
+
+      // Current models can return thinking blocks before the answer, so find the text block
+      const textBlock = Array.isArray(response.content)
+        ? response.content.find(block => block.type === 'text')
+        : undefined;
+
+      if (textBlock && 'text' in textBlock) {
+        return {
+          text: textBlock.text,
+          raw: response,
+        };
       }
-      
-      throw new Error('Invalid response format from Claude');
+
+      throw new Error(`Invalid response format from Claude (stop_reason: ${response.stop_reason})`);
     } catch (error) {
       logger.error('Claude provider error', error, { model: this.config.model });
       throw error;

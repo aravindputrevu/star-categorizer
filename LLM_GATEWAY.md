@@ -6,8 +6,8 @@ This document explains how to configure and use the LLM (Large Language Model) g
 
 The Star Categorizer application uses a modular LLM gateway that allows you to easily switch between different LLM providers without changing the application code. Currently supported providers include:
 
-- **Anthropic Claude** (claude-3-haiku, claude-3-sonnet)
-- **Google Gemini** (gemini-1.5-flash, gemini-1.5-pro)
+- **Anthropic Claude** (claude-opus-5-5, claude-haiku-4-5)
+- **Google Gemini** (gemini-3.8-flash)
 
 ## Configuration
 
@@ -31,12 +31,12 @@ You can also specify which models to use:
 
 ```env
 # Anthropic Claude configuration
-CLAUDE_MODEL=claude-3-haiku-20240307
-FALLBACK_CLAUDE_MODEL=claude-3-5-sonnet-20241022
+CLAUDE_MODEL=claude-opus-5-5
+FALLBACK_CLAUDE_MODEL=claude-haiku-4-5
 
 # Google Gemini configuration
-GEMINI_MODEL=gemini-1.5-flash
-FALLBACK_GEMINI_MODEL=gemini-1.5-pro
+GEMINI_MODEL=gemini-3.8-flash
+FALLBACK_GEMINI_MODEL=gemini-3.8-flash
 ```
 
 ## How It Works
@@ -83,7 +83,7 @@ LLMFactory.registerProvider('new-provider', NewProvider);
 
 ## Performance Considerations
 
-- The faster models (claude-3-haiku, gemini-1.5-flash) are used by default for better performance
+- claude-opus-5-5 and gemini-3.8-flash are the defaults. Set CLAUDE_MODEL=claude-haiku-4-5 for faster, cheaper runs
 - More powerful models are used as fallbacks for complex tasks
 - Results are cached to minimize API calls
 - Concurrent requests for the same data are deduplicated

@@ -46,4 +46,4 @@ reviews:
         instructions: |
           Review the changed source files and identify important edge cases or failure paths that are currently untested.
           If an existing automated test pattern is available for the touched area, add focused regression coverage using that pattern.
-          If no formal test framework exists for the touched area, prefer adding or updating a lightweight validation script that matches the repository's existing root-level `test-api*.js` style.
+          If no formal test framework exists for the touched area, prefer adding or updating a lightweight validation script.

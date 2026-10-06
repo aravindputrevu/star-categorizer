@@ -15,9 +15,9 @@ export interface GeminiConfig extends LLMProviderConfig {
 export class GeminiProvider extends LLMProvider {
   private client: GoogleGenerativeAI;
   private models = {
-    default: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
-    fast: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
-    powerful: process.env.FALLBACK_GEMINI_MODEL || 'gemini-1.5-pro',
+    default: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+    fast: process.env.GEMINI_MODEL || 'gemini-3.8-flash',
+    powerful: process.env.FALLBACK_GEMINI_MODEL || 'gemini-3.8-flash',
   };
 
   constructor(config: GeminiConfig) {
