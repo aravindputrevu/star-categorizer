@@ -12,27 +12,8 @@ const nextConfig = {
     GEMINI_MODEL: process.env.GEMINI_MODEL,
     FALLBACK_GEMINI_MODEL: process.env.FALLBACK_GEMINI_MODEL,
   },
-  // Add Cloudflare compatibility
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // Don't resolve 'fs' module on the client to prevent this error:
-      // Can't resolve 'fs'
-      config.resolve.fallback = {
-        fs: false,
-        net: false,
-        tls: false,
-        path: false,
-        encoding: false,
-        bindings: false,
-      };
-    }
-
-    return config;
-  },
-  // Configure SQLite-using API routes to use Node.js runtime instead of Edge
-  experimental: {
-    serverComponentsExternalPackages: ['better-sqlite3']
-  },
+  // Load the native SQLite module from node_modules at run time instead of bundling it
+  serverExternalPackages: ['better-sqlite3'],
 }
 
 module.exports = nextConfig

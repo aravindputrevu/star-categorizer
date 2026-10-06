@@ -4,9 +4,10 @@ export const runtime = 'edge';
 
 export async function GET(
   request: Request,
-  { params }: { params: { categoryId: string } }
+  { params }: { params: Promise<{ categoryId: string }> }
 ) {
-  const categoryId = parseInt(params.categoryId, 10);
+  const { categoryId: rawCategoryId } = await params;
+  const categoryId = parseInt(rawCategoryId, 10);
 
   if (isNaN(categoryId)) {
     return NextResponse.json({ error: 'Invalid category ID' }, { status: 400 });

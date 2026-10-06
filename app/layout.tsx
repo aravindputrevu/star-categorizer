@@ -1,4 +1,4 @@
-import '/styles/globals.css';
+import '@/styles/globals.css';
 
 import { Inter } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';

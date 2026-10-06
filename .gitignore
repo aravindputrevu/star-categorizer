@@ -8,3 +8,4 @@ node_modules
 data/*.db
 .claude/settings.local.json
 *.tsbuildinfo
+next-env.d.ts
