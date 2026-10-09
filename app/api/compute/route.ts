@@ -390,9 +390,14 @@ ${JSON.stringify(batch)}`;
       // Retry once with fallback model
       try {
         logger.info(`Retrying batch with fallback model`, { batchNumber: index + 1 });
+        const fallbackProvider = process.env.FALLBACK_LLM_PROVIDER || process.env.DEFAULT_LLM_PROVIDER || 'anthropic';
         const fallbackClient = createLLMClient({
-          provider: process.env.FALLBACK_LLM_PROVIDER || process.env.DEFAULT_LLM_PROVIDER || 'anthropic',
-          model: process.env.FALLBACK_LLM_MODEL, // Unset: the fallback provider uses its own default model
+          provider: fallbackProvider,
+          // Unset: the fallback provider uses its own default model
+          model: process.env.FALLBACK_LLM_MODEL
+            || (fallbackProvider.toLowerCase() === 'gemini'
+              ? process.env.FALLBACK_GEMINI_MODEL
+              : process.env.FALLBACK_CLAUDE_MODEL),
           temperature: 0.6,
           maxTokens: 4096
         });

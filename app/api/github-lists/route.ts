@@ -22,6 +22,17 @@ function getOctokit() {
  * 2. Adding repos to an existing list (with username, listName, repositories array)
  */
 export async function POST(request: NextRequest) {
+  // Every caller acts as the GITHUB_ACCESS_TOKEN owner, so list writes stay off
+  // unless the deployment explicitly opts in
+  if (process.env.ENABLE_GITHUB_LIST_SYNC !== 'true') {
+    return NextResponse.json(
+      {
+        error: 'GitHub list syncing is disabled in this deployment.',
+      },
+      { status: 403 }
+    );
+  }
+
   try {
     const octokit = getOctokit();
 

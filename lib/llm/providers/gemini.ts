@@ -37,7 +37,8 @@ export class GeminiProvider extends LLMProvider {
       const model = this.client.getGenerativeModel({ 
         model: modelName,
         generationConfig: {
-          temperature: this.config.temperature || 0.2,
+          // Gemini 3 models work best at their default temperature (1.0)
+          temperature: modelName.startsWith('gemini-3') ? undefined : this.config.temperature || 0.2,
           maxOutputTokens: this.config.maxTokens || 4096,
           topK: (this.config as GeminiConfig).topK,
           topP: (this.config as GeminiConfig).topP,
