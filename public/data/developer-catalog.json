@@ -1,0 +1,349 @@
+{
+  "topDevelopers": [
+    {
+      "username": "kennethreitz",
+      "displayName": "Kenneth Reitz",
+      "avatarUrl": "https://avatars.githubusercontent.com/u/119893",
+      "bio": "Creator of Requests: HTTP for Humans™. Python enthusiast. Developer Advocate. API architect.",
+      "followers": 29400,
+      "website": "https://kennethreitz.org",
+      "company": "Reitz Technologies, LLC",
+      "location": "Nashville, TN",
+      "starCategories": {
+        "API Development & HTTP Tools": [
+          "kennethreitz/requests",
+          "Kong/kong",
+          "encode/httpx",
+          "postmanlabs/postman-app-support",
+          "aio-libs/aiohttp",
+          "encode/starlette"
+        ],
+        "Python Utilities & Libraries": [
+          "kennethreitz/pipenv",
+          "psf/black",
+          "cookiecutter/cookiecutter",
+          "pallets/click",
+          "pypa/pip",
+          "tiangolo/fastapi",
+          "pypa/pipenv"
+        ],
+        "Developer Tools & CLIs": [
+          "github/hub",
+          "cli/cli",
+          "ohmyzsh/ohmyzsh",
+          "jesseduffield/lazygit",
+          "BurntSushi/ripgrep",
+          "junegunn/fzf"
+        ],
+        "Data Science & ML": [
+          "pandas-dev/pandas",
+          "tensorflow/tensorflow",
+          "huggingface/transformers",
+          "scikit-learn/scikit-learn",
+          "pytorch/pytorch"
+        ],
+        "Web Frameworks & Applications": [
+          "django/django",
+          "pallets/flask",
+          "sveltejs/svelte",
+          "vercel/next.js",
+          "hotwired/turbo"
+        ],
+        "Documentation & Learning Resources": [
+          "vinta/awesome-python",
+          "sindresorhus/awesome",
+          "donnemartin/system-design-primer",
+          "public-apis/public-apis",
+          "codecrafters-io/build-your-own-x"
+        ],
+        "DevOps & Deployment": [
+          "docker/compose",
+          "hashicorp/terraform",
+          "kubernetes/kubernetes",
+          "ansible/ansible",
+          "aws/aws-cli"
+        ],
+        "Terminal & Shell Environments": [
+          "alacritty/alacritty",
+          "tmux/tmux",
+          "wting/autojump",
+          "kovidgoyal/kitty",
+          "fish-shell/fish-shell"
+        ]
+      },
+      "topStars": [
+        {
+          "name": "kennethreitz/requests",
+          "description": "Python HTTP Requests for Humans™",
+          "stars": 48900,
+          "category": "API Development & HTTP Tools"
+        },
+        {
+          "name": "kennethreitz/pipenv",
+          "description": "Python Development Workflow for Humans",
+          "stars": 23400,
+          "category": "Python Utilities & Libraries"
+        },
+        {
+          "name": "pallets/flask",
+          "description": "The Python micro framework for building web applications",
+          "stars": 62700,
+          "category": "Web Frameworks & Applications"
+        },
+        {
+          "name": "django/django",
+          "description": "The Web framework for perfectionists with deadlines",
+          "stars": 69800,
+          "category": "Web Frameworks & Applications"
+        },
+        {
+          "name": "encode/httpx",
+          "description": "A next-generation HTTP client for Python",
+          "stars": 10900,
+          "category": "API Development & HTTP Tools"
+        }
+      ],
+      "insightSummary": "Kenneth Reitz's starred repositories reveal his focus on Python development tools, HTTP libraries, and web frameworks. As the creator of Requests, his interests in API development and HTTP tools are evident. He also shows strong interest in developer productivity tools, data science libraries, and documentation resources. His stars reflect a balanced ecosystem of tools that support modern Python development workflows."
+    },
+    {
+      "username": "aravindputrevu",
+      "displayName": "Aravind Putrevu",
+      "avatarUrl": "https://avatars.githubusercontent.com/u/599694?v=4",
+      "bio": "All things, Developers! ",
+      "followers": 161,
+      "website": "aravind.dev",
+      "company": "@devgtm @coderabbitai",
+      "location": "Amsterdam, NL",
+      "starCategories": {
+        "Web Frameworks": [
+          "fastapi/fastapi",
+          "go-goyave/goyave",
+          "spring-projects/spring-ai",
+          "kataras/iris",
+          "turbolinks/turbolinks",
+          "twbs/bootstrap",
+          "h5bp/html5-boilerplate",
+          "StartBootstrap/startbootstrap-freelancer",
+          "StartBootstrap/startbootstrap-clean-blog",
+          "BlackrockDigital/startbootstrap"
+        ],
+        "ML": [
+          "3b1b/manim",
+          "cleanlab/cleanlab",
+          "cleanlab/cleanvision",
+          "deepset-ai/haystack",
+          "FunAudioLLM/SenseVoice",
+          "microsoft/MInference",
+          "microsoft/autogen",
+          "onyx-dot-app/onyx",
+          "stas00/ml-engineering",
+          "suno-ai/bark"
+        ],
+        "DevOps": [
+          "google/wireit",
+          "harness/harness",
+          "taubyte/tau",
+          "hashicorp/consul",
+          "jenkinsci/jenkins",
+          "hubotio/hubot",
+          "kubernetes/kubernetes",
+          "gabstopper/chef-mcafee"
+        ],
+        "Agents/Assistants": [
+          "block/goose",
+          "BoundaryML/baml",
+          "cline/cline",
+          "CopilotKit/CopilotKit",
+          "eastlondoner/cursor-tools",
+          "grapeot/devin.cursorrules",
+          "instructa/viber3d",
+          "kyegomez/swarms",
+          "pontusab/directories",
+          "Portkey-AI/gateway",
+          "Significant-Gravitas/AutoGPT",
+          "smol-ai/developer",
+          "video-db/Director"
+        ],
+        "Database": [
+          "goatplatform/goatdb",
+          "neondatabase/neon",
+          "niledatabase/niledatabase",
+          "pachyderm/pachyderm",
+          "pocketbase/pocketbase",
+          "surrealdb/surrealdb"
+        ],
+        "Miscellaneous": [
+          "ahujasid/blender-mcp",
+          "ascorbic/hypersite",
+          "BurntSushi/ripgrep",
+          "coderabbitai/awesome-coderabbit",
+          "coderabbitai/dotfiles",
+          "davideast/dataprompt",
+          "Dhravya/cloudflare-saas-stack",
+          "fuma-nama/fumadocs",
+          "geohot/fromthetransistor",
+          "getgrit/gritql",
+          "gnachman/iTerm2",
+          "ImagineAILab/ai-by-hand-excel",
+          "localtunnel/localtunnel",
+          "Mail-0/Zero",
+          "masonicGIT/pacman",
+          "microsoft/monthlyresources",
+          "openai/openai-python",
+          "PrashantDixit0/llm-glossary",
+          "punkpeye/awesome-mcp-servers",
+          "solst-ice/itoa",
+          "StefanTerdell/zod-to-json-schema",
+          "sydverma123/awesome-ai-repositories",
+          "talboren/slackline",
+          "tweepy/tweepy",
+          "yshavit/mdq",
+          "google/firing-range",
+          "afonsopacifer/awesome-firebase",
+          "GoogleCloudPlatform/awesome-google-cloud",
+          "java-native-access/jna",
+          "facebookarchive/draft-js",
+          "google/grumpy",
+          "papers-we-love/papers-we-love",
+          "material-foundation/material-remixer",
+          "swiftlang/swift",
+          "material-foundation/material-remixer-android",
+          "google/google-java-format",
+          "clojure/clojure",
+          "golang/go",
+          "apache/lucene-solr",
+          "Blankj/AndroidUtilCode",
+          "freeCodeCamp/freeCodeCamp",
+          "MunGell/awesome-for-beginners",
+          "androidthings/doorbell",
+          "microsoft/botframework-sdk",
+          "zudochkin/awesome-newsletters",
+          "phacility/phabricator",
+          "ravidsrk/android-testing-guide",
+          "ribot/android-guidelines",
+          "pcqpcq/open-source-android-apps",
+          "android/architecture-samples",
+          "ellekasai/resumecards",
+          "spitimage/jekyll-cv-generator",
+          "danielemaddaluno/gradle-jcenter-publish",
+          "apache/commons-lang",
+          "wit-ai/pywit",
+          "dmitrymalk/stock-hawk-app",
+          "hemal-shah/Stock-Hawk",
+          "nasa/api-docs",
+          "boonrs/transitmix",
+          "signalapp/Signal-Android",
+          "zub1984/Jokes",
+          "MiteshSharma/TaskDispatcher",
+          "android10/engineering-blogs",
+          "bhupendra11/Movie-Mojo",
+          "tapaswenipathak/pyQTopic",
+          "adrianstevens/Edison_to_Android_BLE",
+          "google/guava",
+          "googlemaps/google-maps-services-java",
+          "yasserg/crawler4j"
+        ],
+        "Machine Learning": [
+          "gunthercox/ChatterBot",
+          "jtoy/awesome-tensorflow",
+          "josephmisiti/awesome-machine-learning",
+          "tensorflow/tensorflow",
+          "scikit-learn/scikit-learn",
+          "makeyourownneuralnetwork/makeyourownneuralnetwork",
+          "OpenNMT/OpenNMT",
+          "alrojo/tensorflow-tutorial",
+          "intel/ipex-llm"
+        ],
+        "Security": [
+          "chipsec/chipsec",
+          "google/error-prone",
+          "google/truth",
+          "checkstyle/checkstyle",
+          "square/leakcanary"
+        ],
+        "Data Visualization": [
+          "d3/d3",
+          "jacomyal/sigma.js"
+        ],
+        "Android": [
+          "facebook/react-native",
+          "AppIntro/AppIntro",
+          "GDGAhmedabad/Awesome-Learning-Resources",
+          "androidannotations/androidannotations",
+          "chrisbanes/cheesesquare",
+          "michaldrabik/TapBarMenu",
+          "LeonardoCardoso/Android-Link-Preview",
+          "googlemaps-samples/android-samples",
+          "google/iosched"
+        ],
+        "Algorithms and Data Structures": [
+          "phishman3579/java-algorithms-implementation",
+          "iluwatar/java-design-patterns"
+        ],
+        "Education": [
+          "getify/You-Dont-Know-JS",
+          "Olshansk/interview",
+          "in28minutes/interview-guide",
+          "MurtzaM/Developer-Evangelist-Interview-Questions",
+          "prakhar1989/awesome-courses",
+          "jwasham/coding-interview-university",
+          "TEAMMATES/teammates"
+        ],
+        "Cloud": [
+          "aws-samples/aws-big-data-blog",
+          "GoogleCloudPlatform/policyscanner",
+          "Open-Network-Insight/open-network-insight",
+          "udacity/camera-mount",
+          "udacity/self-driving-car",
+          "DataDrivenPolicy/Data-Driven-Policy"
+        ],
+        "Java": [
+          "elastic/elasticsearch",
+          "spring-projects/spring-framework",
+          "spring-projects/spring-boot",
+          "square/okhttp",
+          "Netflix/Hystrix"
+        ],
+        "JavaScript": [
+          "facebook/react"
+        ],
+        "Kotlin": [
+          "iSoron/uhabits"
+        ]
+      },
+      "topStars": [
+        {
+          "name": "fastapi/fastapi",
+          "description": "Repository from Web Frameworks",
+          "stars": 0,
+          "category": "Web Frameworks"
+        },
+        {
+          "name": "3b1b/manim",
+          "description": "Repository from ML",
+          "stars": 0,
+          "category": "ML"
+        },
+        {
+          "name": "google/wireit",
+          "description": "Repository from DevOps",
+          "stars": 0,
+          "category": "DevOps"
+        },
+        {
+          "name": "block/goose",
+          "description": "Repository from Agents/Assistants",
+          "stars": 0,
+          "category": "Agents/Assistants"
+        },
+        {
+          "name": "goatplatform/goatdb",
+          "description": "Repository from Database",
+          "stars": 0,
+          "category": "Database"
+        }
+      ],
+      "insightSummary": "Aravind Putrevu's starred repositories show interests across 16 different categories, with a focus on Web Frameworks, ML, DevOps."
+    }
+  ]
+}
